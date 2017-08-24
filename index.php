@@ -21,6 +21,15 @@ class verwaltung {
                     // Zeige fehler beim Login
                 } else {
                     // Zeige Dashboard
+                    $device = $_SERVER['HTTP_USER_AGENT'];
+                    $device = $this->DB->real_escape_string($device);
+                    $ip = $_SERVER['REMOTE_ADDR'];
+                    $ip = $this->DB->real_escape_string($ip);
+                    $timestamp = time();
+                    $sql = "INSERT INTO " . $this->config['databaseprefix'] . "logins (id, userid, timestamp, ip, device) VALUES (NULL, '" . $_SESSION['id'] . "', '" . $timestamp . "', '" . $ip . "', '" . $device . "');";
+                    //$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET lastseen = '" . time() . "' WHERE id = " . $iddb[0] . "   ;";
+                    $this->DB->modify($sql);
+        
                     $this->GUIshowDashboard();
                 }
                 // Logge in
@@ -118,8 +127,6 @@ class verwaltung {
         if($login == false) {
             return("nein");
         } else if ($login == true) {
-            $sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET lastseen = '" . time() . "' WHERE id = " . $iddb[0] . "   ;";
-            $this->DB->modify($sql);
             $_SESSION['loggedin'] = true;
             $_SESSION['vorname'] = $namedb[0];
             $_SESSION['id'] = $iddb[0];
@@ -171,7 +178,7 @@ class verwaltung {
         $gespeicherttext = false;
         if(isset($_POST['save'])) {
             if($_POST['save'] == "1") {
-                $this->writeLog("User " . $_SESSION['id'] . " changed menu", "changemenu");
+                $this->writeLog("User " . $_SESSION['id'] . " (" . $_SESSION['vorname'] . ") changed the menu", "changemenu");
                 $gespeicherttext = true;
                 for($i = 0; $i < 4; $i++) {
                     if($_POST["title" . $i] == "") {
@@ -226,7 +233,7 @@ class verwaltung {
     }
 
     public function getStaff() {
-        $sql = "SELECT id, user, vorname, email, lastseen, disabled FROM " . $this->config['databaseprefix'] . "accounts";
+        $sql = "SELECT id, user, vorname, email, disabled FROM " . $this->config['databaseprefix'] . "accounts";
         $result = $this->DB->query($sql);
         if($result === 0) {
            $num = 0;
@@ -240,15 +247,30 @@ class verwaltung {
                 $titledb[$k] = $row["user"];
                 $vornamedb[$k] = $row["vorname"];
                 $emaildb[$k] = $row["email"];
-                $lastseendb[$k] = $row["lastseen"];
                 $disableddb[$k] = $row["disabled"];
 		        $k++;
-	        }
+            }
+                        
             $return = "";
             for($i = 0; $i < $k; $i++) {
+                $sql = "SELECT timestamp FROM " . $this->config['databaseprefix'] . "logins WHERE userid = '" . $iddb[$i] . "' ORDER BY timestamp DESC LIMIT 1;";
+                $result = $this->DB->query($sql);
+                if($result === 0) {
+                   $num = 0;
+                } else {
+                    $num = mysqli_num_rows($result);
+                }
+                $k = 0;
+                if($num > 0) {   
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        $lastseendb = $row["timestamp"];
+                    }
+                } else {
+                    $lastseendb = 1;
+                }
                 if($disableddb[$i] == "1") { 
                 } else {
-                    $return .= "<tr><th><b>$vornamedb[$i]</b></th><th>$emaildb[$i]</th><th>" . date("d. F Y, H:i", $lastseendb[$i]) . "</th><th><a href='?page=disableuser&uid=$iddb[$i]'>Deaktiveren</a>, <a href='?page=recoverpw&uid=$iddb[$i]'>PW vergessen</a ></th></td>";
+                    $return .= "<tr><th><b>$vornamedb[$i]</b></th><th>$emaildb[$i]</th><th>" . date("d. F Y, H:i", $lastseendb) . "</th><th><a href='?page=disableuser&uid=$iddb[$i]'>Deaktiveren</a>, <a href='?page=recoverpw&uid=$iddb[$i]'>PW vergessen</a ></th></td>";
                 }
             }
             return($return);
@@ -314,9 +336,37 @@ class verwaltung {
     public function writeLog($message, $typeofaction) {
         $message = $this->DB->real_escape_string($message);
         $typeofaction = $this->DB->real_escape_string($typeofaction);
+        $userid = $this->DB->real_escape_string($_SESSION['id']);
         $time = time();
-        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "log (id, timestamp, message, typeofaction) VALUES (NULL, '$time', '$message', '$typeofaction');"; 
+        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "log (id, timestamp, message, typeofaction, userid) VALUES (NULL, '$time', '$message', '$typeofaction', '$userid');"; 
         $this->DB->modify($sql);
+    }
+
+    public function broadcastMail($mailtext, $type) {
+        $sql = "SELECT vorname, email FROM " . $this->config['databaseprefix'] . "accounts  WHERE email LIKE '%@%' AND disabled = '0';";
+        $result = $this->DB->query($sql);
+        if($result === 0) {
+           $num = 0;
+        } else {
+	        $num = mysqli_num_rows($result);
+        }
+        $k = 0;
+        if($num > 0) {   
+	        while ($row = mysqli_fetch_assoc($result)) {
+                $vornamedb[$k] = $row["vorname"];
+                $emaildb[$k] = $row["email"];
+		        $k++;
+            }
+        }
+        $text = "";
+
+        for($i = 0; $i < count($emaildb); $i++) {
+            if($type == "newArticle") {
+                $text .= "Hallo " . $vornamedb[$i] . "!\nEs wurde der folgende Artikel auf " . $this->config['host'] . " angelegt:\n";
+                $text .= $mailtext . "\nFreundliche Grüße, dein " . $this->config['host'] . " Benachrichtgungssystem.";
+                mail($emaildb[$i], $this->config['host'] . ": Es wurde ein neuer Artikel angelegt.", $text);
+            }
+        }
     }
 
     public function GUIshowlogin($error = "") {
@@ -329,7 +379,7 @@ class verwaltung {
                 <h2 class="form-signin-heading">Anmelden</h2>
                 <div>Bitte gib deine Zugangsdaten an:</div>
                 <label for="user" class="sr-only">Benutzername</label>
-                <input type="text" name="user" "id="user" class="form-control" placeholder="Benutzername" required autofocus>
+                <input type="text" name="user" id="user" class="form-control" placeholder="Benutzername" required autofocus>
                 <label for="password" class="sr-only">Passwort</label>
                 <input type="password" name="password" id="password" class="form-control" placeholder="Passwort" required>
                 <div class="checkbox">';
@@ -338,6 +388,7 @@ class verwaltung {
                 <button class="btn btn-lg btn-primary btn-block" type="submit">Einloggen</button>
               ';
         echo "<br/><small><a onClick=" . '"' . "document.getElementById('pwvergessen').style.display = 'block'" . '"' . ">Passwort vergessen?</a></small><div id='pwvergessen' style='display:none' class='alert alert-warning'>Es besteht keine Möglichkeit dir selbst das Passwort zurückzusetzen. Bitte frage jemanden aus dem Redaktionsteam, um das Passwort zurückzusetzten.</div></form> </div>";
+        echo "<span style='color:grey'>&copy; 2017 " . $this->config['devname'] . "</span><br />Fork me on GitHub!";
         $this->LAYOUTfooter();
     } 
 
@@ -397,7 +448,7 @@ class verwaltung {
                 $lastmod = $this->DB->real_escape_string($lastmod);
                 $aktuell = $this->DB->real_escape_string($aktuell);
                 $text = $this->DB->real_escape_string($text);
-                $sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', text = '" . $text . "' WHERE id = '" . $id . "';"; 
+                $sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', text = '" . $text . "', url = '" . $url . "' WHERE id = '" . $id . "';"; 
                 $this->DB->modify($sql);
                 header("Location: index.php?page=viewdraft&id=" . $id . "&msg=save");
                 // ToDo in Datenbank
@@ -492,6 +543,7 @@ class verwaltung {
                 $text = $this->DB->real_escape_string($text);
                 $sql = "INSERT INTO " . $this->config['databaseprefix'] . "drafts (id, userid, title, created, lastmod, url, aktuell, text) VALUES (NULL, '" . $userid . "', '" . $title . "', '" . $created . "', '" . $lastmod . "', '" . $url . "', '" . $aktuell . "', '" . $text . "');";
                 $this->DB->modify($sql);
+                $this->writeLog("Draft " . $title . " was created by " . $_SESSION['id'] . " (" . $_SESSION['vorname'] . ").", "createdraft");
                 // ToDo in Datenbank
                 echo "<div class='alert alert-success'>Entwurf angelegt!</div>";
                 echo "Meine Entwürfe:
@@ -570,14 +622,55 @@ class verwaltung {
     public function GUIshowDashboard() {
         $this->LAYOUTtop();
         $vorname = $_SESSION['vorname'];
-        echo "Willkommen, $vorname. <ul>
+        echo "<div style='text-align:center;'><h2>Willkommen, $vorname!</h2><p class='lead'>Bitte wähle aus, was du tun möchtest:</p><!--<ul>
         <li><a href='?page=newarticle'>Neuen Artikel schreiben</a></li>
         <li><a href='?page=mydrafts'>Meine Entwürfe</a></li>
         <li><a href='?page=menu'>Menü bearbeiten</a></li>
         <li>Ausgaben bearbeiten</li>
         <li><a href='?page=staff'>Redaktion & Zugriff</a></li>
         <li><a href='?page=logout'>Logout</a></li>
-        <ul>";
+        <ul>
+        --></div>
+        <div class='row'>
+        <div class='col-xs-6 col-lg-4'>
+          <h2>Neuen Artikel schreiben</h2>
+          <p>Klicke hier, wenn du einen neuen Artikel anfagen möchstest.    </p>
+          <p><a class='btn btn-default' href='?page=newarticle' role='button'>Weiter &raquo;</a></p>
+        </div><!--/.col-xs-6.col-lg-4-->
+        <div class='col-xs-6 col-lg-4'>
+          <h2>Meine Entwürfe</h2>
+          <p>Hier kannst du deine bereits angefangenen Artikel, die aber noch nicht auf der Webseite veröffentlicht wurden, ansehen. Hier kannst du weiterschreiben und sie auch veröffentlichen.</p>
+          <p><a class='btn btn-default' href='?page=mydrafts' role='button'>Weiter &raquo;</a></p>
+        </div><!--/.col-xs-6.col-lg-4-->
+        <div class='col-xs-6 col-lg-4'>
+          <h2>Menü bearbeiten</h2>
+          <p>Hier kann das Menü, welches unten links auf der Webseite ist, bearbeitet werden. Es sind bis zu fünf einträge möglich. Im Regelfall sollte es jedoch keinen Änderungsbedarf geben.</p>
+          <p><a class='btn btn-default' href='?page=menu' role='button'>Weiter &raquo;</a></p>
+        </div><!--/.col-xs-6.col-lg-4-->
+        <div class='col-xs-6 col-lg-4'>
+          <h2>Ausgaben bearbeiten</h2>
+          <p>Auf der Webseite werden die Online-Artikeln zu Printversionen zugeordnet. Hier kannst du die einzelen Printausgaben einsehen und die Artikel zuordnen.</p>
+          <p><a class='btn btn-default' disabled='disabled' href='#' role='button'>Weiter &raquo;</a></p>
+        </div><!--/.col-xs-6.col-lg-4-->
+        <div class='col-xs-6 col-lg-4'>
+          <h2>Redaktion und Zugriff</h2>
+          <p>Hier kannst du neue Accounts für die Webseite erstellen oder Passwörter für vergessene Anfragen</p>
+          <p><a class='btn btn-default' href='?page=staff' role='button'>Weiter &raquo;</a></p>
+        </div><!--/.col-xs-6.col-lg-4-->
+        <div class='col-xs-6 col-lg-4'>
+        <h2>Einstellungen</h2>
+        <p>Hier geht es zu deinen Benutzereinstellungen</b></p>
+        <p><a class='btn btn-default' href='?page=settings' role='button'>Weiter &raquo;</a></p>
+      </div><!--/.col-xs-6.col-lg-4-->
+      </div>
+      <div class='row'>
+        <div class='col-xs-6 col-lg-4'>
+          <h2>Statistiken</h2>
+          <p>Hier geht es zu den Webseitenstatistiken. <br />Benutzer: , Passwort: </b></p>
+          <p><a class='btn btn-default' href='#' disabled='disabled' role='button'>Weiter &raquo;</a></p>
+        </div><!--/.col-xs-6.col-lg-4-->
+        </div>
+        ";
         $this->LAYOUTfooter();
     }
 
@@ -746,20 +839,49 @@ class verwaltung {
                 }
                 $vornamedb = $vornamedb[0];
             }
+            $message = "";
+            $disablebuttons = false;
 
-
+            if(isset($_GET['action'])) {
+                if($_GET['action'] == "publish") {
+                    //Publish here
+                    $sql = "SELECT * FROM " . $this->config['databaseprefix'] . "articles WHERE url = '" . $urldb . "';";
+                    $result = $this->DB->query($sql);
+                    if($result === 0) {
+                        $num = 0;
+                    } else {
+                        $num = mysqli_num_rows($result);
+                    }
+                    if($urldb == "" OR $num > 0) {
+                        // URL existiert bereits
+                        $message .= "<div class='alert alert-danger'>Fehler: Der Artikel wurde nicht gepseichert: Die URL existiert bereits! Wähle einen anderen Titel!</div>";
+                    } else {
+                        $this->writeLog("Article: " . $titledb . ", URL: " . $urldb, "publisharticle");
+                        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "articles (id, userid, title, created, lastmod, url, aktuell, text, disabled) VALUES (NULL, '" . $useriddb . "', '" . $titledb . "', '" . $createddb . "', '" . $lastmoddb . "', '" . $urldb . "', '" . $aktuelldb . "', '" . $textdb . "', '0');";
+                        $this->DB->modify($sql);
+                        $sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id = '" . $id . "';";
+                        $this->DB->modify($sql);
+                        $message .= "<div class='alert alert-success'>Artikel wurde veröffentlicht</div>";
+                        $disablebuttons = true;
+                    }
+                }
+            }
             if($aktuelldb == 1) {
                 $aktuelltext = "ja";
             } else {
                 $aktuelltext = "nein";
             }
-            $message = "";
             if(isset($_GET['msg'])) {
                 if($_GET['msg'] == "save") {
-                    $message = "<div class='alert alert-success'>Änderungen gespeichert</div>";
+                    $message .= "<div class='alert alert-success'>Änderungen gespeichert</div>";
                 }
             }
-            echo "$message<h2>" . $titledb . "</h2><h4>Verfasst am $createddb von $vornamedb<br /><small>URL: /$urldb | Erscheint unter aktuelles: $aktuelltext | Letzte Änderung: " . date('d.m.Y' , $lastmoddb) . "</small></h4><small><a href='index.php?page=editdraft&id=" . $iddb . "' class='btn btn-primary'>Bearbeiten</a> <a href='' class='btn btn-primary'>Veröffentlichen</a> <a href='?page=deldraft&id=" . $iddb . "'  class='btn btn-primary'>Löschen</a></small><div>" . $textdb . "</div>";
+            echo "<p>$message<h2>" . $titledb . "</h2><h4>Verfasst am $createddb von $vornamedb<br /><small>URL: /$urldb | Erscheint unter aktuelles: $aktuelltext | Letzte Änderung: " . date('d.m.Y' , $lastmoddb) . "</small></h4>";
+            if($disablebuttons == false) {
+                echo "<small><a href='index.php?page=editdraft&id=" . $iddb . "' class='btn btn-primary'>Bearbeiten</a> <a onclick='" . 'document.getElementById("publishwarning").style.display = "block"' . "' class='btn btn-primary'>Veröffentlichen</a> <a href='?page=deldraft&id=" . $iddb . "'  class='btn btn-primary'>Löschen</a></small></p>";
+            }
+            echo "<div id='publishwarning' style='display:none' class='alert alert-info'>Nach der Veröffentlichung besteht keine Möglichkeit mehr, den Artikel zu bearbeiten. Klicke weiter, wenn alles entgültig okay ist.<br /><a href='?page=viewdraft&id=" . $id . "&action=publish' class='btn btn-primary'>Okay, verstanden! Weiter &gt;</a></div>";
+            echo "<div>" . $textdb . "</div>";
         } else {
             echo "Bitte ID des Entwurfes angeben";
         }
@@ -789,28 +911,102 @@ class verwaltung {
 
     public function GUIuserSettings() {
         $this->LAYOUTtop();
-        echo "Anzeigename: E-Mail Benachrichtigungen: Für neuen Artikel";
+        echo "<a href='index.php' class='btn btn-secondary'>← Zurück zur Auswahl</a>";
+        echo  "<div class='row'>
+        <div class='col-md-6 col-md-offset-3'>
+        <legend class='text-center'>Allgemeine Einstellungen</legend>
+        <form class='form-horizontal'>
+        <div class='form-group'>
+        <label class='col-md-3 control-label' for='name'>Name</label>
+        <div class='col-md-9'>
+        <input id='name' name='name' type='text' placeholder='Your name' class='form-control' value='" . $_SESSION['vorname'] . "'>
+        </div>
+        </div>
+        <div class='form-group'>
+        <label class='col-md-3 control-label' for='email'>E-Mail</label>
+        <div class='col-md-9'>
+        <input id='email' name='email' type='email' placeholder='E-Mail' class='form-control' value=''>
+        </div>
+        </div>
+        <div class='form-group'>
+        <label class='col-md-3 control-label' for='pwchange'>Passwort</label>
+        <div class='col-md-9'>
+        <a href='' id='pwchange' class='btn btn-primary'>Passwort ändern</a>
+        </div>
+        </div>
+        <div class='form-group'>
+        <label class='col-md-3 control-label'>Letzter Login</label>
+        <div class='col-md-9'>
+        <span class='align-middle'>Am ";
+        $sql = "SELECT timestamp, device FROM " . $this->config['databaseprefix'] . "logins WHERE userid = '" . $_SESSION['id'] . "' ORDER BY timestamp DESC LIMIT 1 OFFSET 1;";
+        $result = $this->DB->query($sql);
+        if($result === 0) {
+           $num = 0;
+        } else {
+            $num = mysqli_num_rows($result);
+        }
+        $k = 0;
+        if($num > 0) {   
+            while ($row = mysqli_fetch_assoc($result)) {
+                $lastseendb = $row["timestamp"];
+                $device = $row["device"];
+            }
+        } else {
+            $lastseendb = 1;
+            $device = "";
+        }
+        echo date('d.m.Y H:i',$lastseendb); 
+        echo " auf $device</span>
+        </div>
+        </div>
+        <legend class='text-center'>Benachrichtigungen</legend>
+        <p class='text-center'>Erhalte Benachrichtigunegen per E-Mail für:<br /></p>
+        <div class='form-group'>
+        <label class='col-md-3 control-label' for='na'>Neuer Artikel</label>
+        <div class='col-md-9'>
+        <label style='font-weight:normal'>
+          <input type='checkbox' id='na' value=''>
+          Benachrichtige mich, wenn ein neuer Artikel veröffentlicht wurde.
+        </label>
+      </div>
+        </div>
+        <div class='form-group'>
+        <label class='col-md-3 control-label' for='email'>Neuer Benutzer</label>
+        <div class='col-md-9'>
+        <label style='font-weight:normal'>
+          <input type='checkbox' value=''>
+          Benachrichtige mich, wenn ein neuer Account angelegt wurde.
+        </label>
+      </div>
+        </div>
+        <div class='text-center'><br /><br />
+        <input class='btn btn-success text-center' type='submit' value='Einstellungen ändern'></div>
+        </div>
+        </form>
+       
+      
+      
+        ";
+
         $this->LAYOUTfooter();
     }
 
     public function LAYOUTtop() {
         // ToDo: HTML-Top
-        $return = "<!doctype>
-<html>
-    <head>
+        $return = "<!doctype>\n<html>\n\t<head>
         <title>Verwaltung | " . $this->config['name'] . "</title>
         <link rel='stylesheet' href='bootstrap.min.css'>
     </head>
     <body>
+    <nav class='navbar navbar-light navbar-static-top' style='background-color: " . $this->config['accentcolor'] . ";'>
     <div class='container'>
-    <nav class='navbar navbar-light' style='background-color: rgb(211,28,26);'>
     <div class='navbar-brand' style='color:white'><big>" . $this->config['name'] . " - Verwaltung</big></div>";
     if(isset($_SESSION['vorname'])) {
         $vorname = $_SESSION['vorname'];
-        $return .= "<span class='navbar-text' style='float:right; color:white;'>$vorname. <a href='?page=logout'>Abmelden</a></span>";
+        $return .= "<span class='navbar-text navbar-right' style='color:white;'>$vorname. <small><a href='?page=logout' class='navbar-link' style='color:white;'>Abmelden</a></small></span>";
     }
     $return .= "</nav>
-        <div>";
+        <div><div class='container'>";
         echo($return);
     }
 
@@ -819,7 +1015,6 @@ class verwaltung {
         echo $return;
         // ToDo: HTML-Footer
     }
-    
 }
 
 $tool = new verwaltung();
