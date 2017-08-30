@@ -47,6 +47,8 @@ class verwaltung {
                 $this->GUImyDrafts();
             } else if ($_GET['page'] == 'menu') {
                 $this->GUImenu();
+            } else if ($_GET['page'] == 'ausgaben') {
+                $this->GUIausgaben();
             } else if ($_GET['page'] == 'staff') {
                 $this->GUIstaff();
             } else if ($_GET['page'] == 'disableuser') {
@@ -167,6 +169,63 @@ class verwaltung {
         } else {
             return("Du hast keine Entwürfe angelegt.");
         }
+    }
+
+    public function showAusgaben() {
+        $gespeicherttext = false;
+        if(isset($_POST['save'])) {
+            if($_POST['save'] == "1") {
+                $this->writeLog("User " . $_SESSION['id'] . " (" . $_SESSION['vorname'] . ") changed the issues", "changeissue");
+                $gespeicherttext = true;
+                for($i = 0; $i < 4; $i++) {
+                    if($_POST["title" . $i] == "") {
+                        $sql = "DELETE FROM " . $this->config['databaseprefix'] . "issue WHERE id = $i+1"; 
+                        $this->DB->modify($sql);
+                        // Leerer Titel
+                    } else {
+                        $sql = "DELETE FROM " . $this->config['databaseprefix'] . "issue WHERE id = $i+1"; 
+                        $this->DB->modify($sql);
+                        $temp = $_POST["title" . $i];
+                        $templink = $_POST["link" . $i];
+                        $tempnr = $i+1;
+                        $tempnr = $this->DB->real_escape_string($tempnr);
+                        $temp = $this->DB->real_escape_string($temp);
+                        $templink = $this->DB->real_escape_string($templink);
+                        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "issue (id, title, link) VALUES ('$tempnr', '$temp', '$templink')"; 
+                        $this->DB->modify($sql);
+                        // Voller Titel
+                    }
+                }
+            }
+        }
+        $sql = "SELECT * FROM " . $this->config['databaseprefix'] . "issue ORDER BY id ASC";
+        $result = $this->DB->query($sql);
+        if($result === 0) {
+           $num = 0;
+        } else {
+	        $num = mysqli_num_rows($result);
+        }
+         $k = 0;
+        if($num > 0) {
+	        while ($row = mysqli_fetch_assoc($result)) {
+		        $iddb[$k] = $row["id"];
+                $titledb[$k] = $row["title"];
+                $linkdb[$k] = $row["link"];
+		        $k++;
+	        }
+        }
+        $return = "";
+        if($gespeicherttext) {
+            $return .= "<div class='alert alert-success'>Gespeichert</div><br>";
+        }
+        for($i=0; $i < $k; $i++) {
+            $return .= "<li>Titel:<input value='$titledb[$i]' name='title" . $i . "'> Link:<input value='$linkdb[$i]' name='link" . $i . "'></li>";
+        }
+        for($j=$i; $j < 4; $j++) {
+            $return .= "<li>Titel:<input value='' name='title" . $j . "'> Link:<input value='' name='link" . $j . "'></li>";
+        }
+        $return .= "</ul><input type='hidden' name='save'  value='1'><input class='btn btn-primary' type='submit' value='Menü speichern'></form>";
+        return($return);
     }
 
     public function showMenu() {
@@ -408,6 +467,7 @@ class verwaltung {
                 $createddb[$k] = $row["created"];
                 $urldb[$k] = $row["url"];
                 $aktuelldb[$k] = $row["aktuell"];
+                $detailsdb[$k] = $row["details"];
                 $textdb[$k] = $row["text"];
 		        $k++;
             }
@@ -417,6 +477,7 @@ class verwaltung {
             $createddb = $createddb[0];
             $urldb = $urldb[0];
             $aktuelldb = $aktuelldb[0];
+            $detailsdb = $detailsdb[0];
             $textdb = $textdb[0];
         }
         $meldung = "";
@@ -434,6 +495,11 @@ class verwaltung {
                 } else {
                     $aktuell = 0;
                 }
+                if($_POST['details'] == "yes")  {
+                    $details = 1;
+                } else {
+                    $details = 0;
+                }
                 $text = $_POST['text'];
                 $url = strtolower($title);
                 $vokale = array("a", "o", "u", "-", "ss");
@@ -447,8 +513,9 @@ class verwaltung {
                 $created = $this->DB->real_escape_string($created);
                 $lastmod = $this->DB->real_escape_string($lastmod);
                 $aktuell = $this->DB->real_escape_string($aktuell);
+                $details = $this->DB->real_escape_string($details);
                 $text = $this->DB->real_escape_string($text);
-                $sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "',  teaser = '" . $teaser . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', text = '" . $text . "', url = '" . $url . "' WHERE id = '" . $id . "';"; 
+                $sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "',  teaser = '" . $teaser . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', details = '" . $details . "', text = '" . $text . "', url = '" . $url . "' WHERE id = '" . $id . "';"; 
                 $this->DB->modify($sql);
                 header("Location: index.php?page=viewdraft&id=" . $id . "&msg=save");
                 // ToDo in Datenbank
@@ -487,8 +554,30 @@ class verwaltung {
         </div>
         <div class='form-check'>
             <label for='aktuelles'>Erscheint unter Aktuelles:</label><br />
-            <input type='radio' name='aktuelles' value='yes' id='yes' checked='checked'><label for='yes'> Ja</label> <input type='radio' name='aktuelles' id='no' value='no'><label for='no'> Nein</label><br />
+            <input type='radio' name='aktuelles' value='yes' id='yes1'";
+         //   $aktuelldb = $aktuelldb[0];
+         //   $detailsdb = $detailsdb[0];
+            if($aktuelldb == 1) {
+                echo "checked='checked'";
+            }
+            echo "><label for='yes1'> Ja</label> <input type='radio' name='aktuelles' id='no1' value='no'";
+            if($aktuelldb == 0) {
+                echo "checked='checked'";
+            }
+            echo "><label for='no1'> Nein</label><br />
         </div>
+        <div class='form-check'>
+        <label for='details'>Details (Autor, Veröffentlichung) anzeigen:</label><br />
+        <input type='radio' name='details' value='yes' id='yes2'";
+        if($detailsdb == 1) {
+            echo "checked='checked'";
+        }
+        echo "><label for='yes2'> Ja</label> <input type='radio' name='details' id='no2' value='no'";
+        if($detailsdb == 0) {
+            echo "checked='checked'";
+        }
+        echo "><label for='no2'> Nein</label><br />
+    </div>
         <div class='form-group'>
         <label for='ausgabe'>Artikel gehört zu Ausgabe</label>
         <select class='form-control' id='ausgabe'>
@@ -534,6 +623,11 @@ class verwaltung {
                 } else {
                     $aktuell = 0;
                 }
+                if($_POST['details'] == "yes")  {
+                    $details = 1;
+                } else {
+                    $details = 0;
+                }
                 $text = $_POST['text'];
                 $url = strtolower($title);
                 $vokale = array("a", "o", "u", "-", "ss");
@@ -546,8 +640,9 @@ class verwaltung {
                 $created = $this->DB->real_escape_string($created);
                 $lastmod = $this->DB->real_escape_string($lastmod);
                 $aktuell = $this->DB->real_escape_string($aktuell);
+                $details = $this->DB->real_escape_string($details);
                 $text = $this->DB->real_escape_string($text);
-                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "drafts (id, userid, title, teaser, created, lastmod, url, aktuell, text) VALUES (NULL, '" . $userid . "', '" . $title . "', '" . $teaser . "', '" . $created . "', '" . $lastmod . "', '" . $url . "', '" . $aktuell . "', '" . $text . "');";
+                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "drafts (id, userid, title, teaser, created, lastmod, url, aktuell, details, text) VALUES (NULL, '" . $userid . "', '" . $title . "', '" . $teaser . "', '" . $created . "', '" . $lastmod . "', '" . $url . "', '" . $aktuell . "', '" . $details . "', '" . $text . "');";
                 $this->DB->modify($sql);
                 $this->writeLog("Draft " . $title . " was created by " . $_SESSION['id'] . " (" . $_SESSION['vorname'] . ").", "createdraft");
                 // ToDo in Datenbank
@@ -582,6 +677,10 @@ class verwaltung {
             <label for='aktuelles'>Erscheint unter Aktuelles:</label><br />
             <input type='radio' name='aktuelles' value='yes' id='yes' checked='checked'><label for='yes'> Ja</label> <input type='radio' name='aktuelles' id='no' value='no'><label for='no'> Nein</label><br />
         </div>
+        <div class='form-check'>
+        <label for='details'>Details (Autor, Veröffentlichung) anzeigen:</label><br />
+        <input type='radio' name='details' value='yes' id='yes' checked='checked'><label for='yes'> Ja</label> <input type='radio' name='details' id='no' value='no'><label for='no'> Nein</label><br />
+    </div>
         <div class='form-group'>
         <label for='ausgabe'>Artikel gehört zu Ausgabe</label>
         <select class='form-control' id='ausgabe'>
@@ -824,6 +923,7 @@ class verwaltung {
                     $lastmoddb[$k] = $row["lastmod"];
                     $urldb[$k] = $row["url"];
                     $aktuelldb[$k] = $row["aktuell"];
+                    $detailsdb[$k] = $row["details"];
                     $textdb[$k] = $row["text"];
                     $k++;
                 }
@@ -835,6 +935,7 @@ class verwaltung {
                 $lastmoddb = $lastmoddb[0];
                 $urldb = $urldb[0];
                 $aktuelldb = $aktuelldb[0];
+                $detailsdb = $detailsdb[0];
                 $textdb = $textdb[0];
             }
             $sql = "SELECT * FROM " . $this->config['databaseprefix'] . "accounts WHERE id = " . $useriddb . ";";
@@ -869,7 +970,7 @@ class verwaltung {
                         $message .= "<div class='alert alert-danger'>Fehler: Der Artikel wurde nicht gepseichert: Die URL existiert bereits! Wähle einen anderen Titel!</div>";
                     } else {
                         $this->writeLog("Article: " . $titledb . ", URL: " . $urldb, "publisharticle");
-                        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "articles (id, userid, title, teaser, created, lastmod, url, aktuell, text, disabled) VALUES (NULL, '" . $useriddb . "', '" . $titledb . "', '" . $teaserdb . "', '" . $createddb . "', '" . $lastmoddb . "', '" . $urldb . "', '" . $aktuelldb . "', '" . $textdb . "', '0');";
+                        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "articles (id, userid, title, teaser, created, lastmod, url, aktuell, details, text, disabled) VALUES (NULL, '" . $useriddb . "', '" . $titledb . "', '" . $teaserdb . "', '" . $createddb . "', '" . $lastmoddb . "', '" . $urldb . "', '" . $aktuelldb . "', '" . $detailsdb . "', '" . $textdb . "', '0');";
                         $this->DB->modify($sql);
                         $sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id = '" . $id . "';";
                         $this->DB->modify($sql);
@@ -883,12 +984,17 @@ class verwaltung {
             } else {
                 $aktuelltext = "nein";
             }
+            if($detailsdb == 1) {
+                $detailstext = "ja";
+            } else {
+                $detailstext = "nein";
+            }
             if(isset($_GET['msg'])) {
                 if($_GET['msg'] == "save") {
                     $message .= "<div class='alert alert-success'>Änderungen gespeichert</div>";
                 }
             }
-            echo "<p>$message<h2>" . $titledb . "</h2><h4>Verfasst am $createddb von $vornamedb<br /><small>URL: /$urldb | Erscheint unter aktuelles: $aktuelltext | Letzte Änderung: " . date('d.m.Y' , $lastmoddb) . "</small></h4>";
+            echo "<p>$message<h2>" . $titledb . "</h2><h4>Verfasst am $createddb von $vornamedb<br /><small>URL: /$urldb | Erscheint unter aktuelles: $aktuelltext | Details anzeigen: $detailstext | Letzte Änderung: " . date('d.m.Y' , $lastmoddb) . "</small></h4>";
             if($disablebuttons == false) {
                 echo "<small><a href='index.php?page=editdraft&id=" . $iddb . "' class='btn btn-primary'>Bearbeiten</a> <a onclick='" . 'document.getElementById("publishwarning").style.display = "block"' . "' class='btn btn-primary'>Veröffentlichen</a> <a href='?page=deldraft&id=" . $iddb . "'  class='btn btn-primary'>Löschen</a></small></p>";
             }
@@ -904,7 +1010,7 @@ class verwaltung {
         if(isset($_GET['id'])) {
             if(isset($_GET['confirm'])) {
                 $id = $this->DB->real_escape_string($_GET['id']);
-                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "draftsold (userid, title, teaser, created, lastmod, url, aktuell, text) SELECT userid, title, teaser, created, lastmod, url, aktuell, text FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " . $id . ";";
+                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "draftsold (userid, title, teaser, created, lastmod, url, aktuell, details, text) SELECT userid, title, teaser, created, lastmod, url, aktuell, details, text FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " . $id . ";";
                 $this->DB->modify($sql);
                 $sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " .  $id . ";";
                 $this->DB->modify($sql);
@@ -1000,6 +1106,13 @@ class verwaltung {
         <input class='btn btn-success text-center' type='submit' value='Einstellungen ändern'></div>
         </div>
         </form>";
+        $this->LAYOUTfooter();
+    }
+
+    public function GUIausgaben() {
+        $this->LAYOUTtop();
+        $vorname = $_SESSION['vorname'];
+        echo "<a href='index.php' class='btn btn-secondary'>← Zurück zur Auswahl</a><br />" . $this->showAusgaben();
         $this->LAYOUTfooter();
     }
 
