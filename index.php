@@ -3,7 +3,6 @@
 # (c) 2017 IK
 
 error_reporting(E_ALL);
-
 require("../assets/DBCore.php");
 
 class verwaltung {
@@ -11,7 +10,6 @@ class verwaltung {
         session_start();
         $this->DB = new DBCore ('dbtest');
         $this->config = require('config.php');
-
         if(!isset($_SESSION['loggedin']) OR ($_SESSION['loggedin'] !== true)) {
              if(isset($_POST['user']) && isset($_POST['password'])) {
                 if($this->dologin($_POST['user'], $_POST['password']) == "disabled") {
@@ -36,7 +34,6 @@ class verwaltung {
             } else {
                 $this->GUIshowlogin();
             }
-
             //Show login
         } else {
             // Login erfolgreich
@@ -120,7 +117,6 @@ class verwaltung {
         } else {
             $disabled = "nein";
         }
-
         if($disabled == "ja") {
             return("disabled");
         }
@@ -156,6 +152,7 @@ class verwaltung {
 	        while ($row = mysqli_fetch_assoc($result)) {
 		        $iddb[$k] = $row["id"];
                 $titledb[$k] = $row["title"];
+                $teaserdb[$k] = $row["teaser"];
                 $createdb[$k] = $row["created"];
                 $lastmoddb[$k] = $row["lastmod"];
                 $textdb[$k] = $row["text"];
@@ -164,11 +161,9 @@ class verwaltung {
 
             $return = "";
             for($i=0; $i < $k; $i++) {
-                $textteaser = substr($textdb[$i], 0, 50) . "…";
-                $return .= "<tr><th>" . "$titledb[$i]</th><th>$createdb[$i]</th><th>" . date('d.m.Y',$lastmoddb[$i]) . "</th><th>$textteaser</th><th><a href='?page=viewdraft&id=" . $iddb[$i] . "'>Bearbeiten</a>" . "</tr>\n";
+                $return .= "<tr><th>" . "$titledb[$i]</th><th>$createdb[$i]</th><th>" . date('d.m.Y',$lastmoddb[$i]) . "</th><th>$teaserdb[$i]</th><th><a href='?page=viewdraft&id=" . $iddb[$i] . "'>Bearbeiten</a>" . "</tr>\n";
             }
-            return($return);
-            
+            return($return);  
         } else {
             return("Du hast keine Entwürfe angelegt.");
         }
@@ -248,29 +243,29 @@ class verwaltung {
                 $vornamedb[$k] = $row["vorname"];
                 $emaildb[$k] = $row["email"];
                 $disableddb[$k] = $row["disabled"];
-		        $k++;
+                $k++;
             }
                         
             $return = "";
-            for($i = 0; $i < $k; $i++) {
+            for($i = 0; $i < $num; $i++) {
                 $sql = "SELECT timestamp FROM " . $this->config['databaseprefix'] . "logins WHERE userid = '" . $iddb[$i] . "' ORDER BY timestamp DESC LIMIT 1;";
                 $result = $this->DB->query($sql);
                 if($result === 0) {
-                   $num = 0;
+                   $numa = 0;
                 } else {
-                    $num = mysqli_num_rows($result);
+                    $numa = mysqli_num_rows($result);
                 }
                 $k = 0;
-                if($num > 0) {   
+                if($numa > 0) {   
                     while ($row = mysqli_fetch_assoc($result)) {
                         $lastseendb = $row["timestamp"];
                     }
                 } else {
                     $lastseendb = 1;
                 }
-                if($disableddb[$i] == "1") { 
-                } else {
+                if($disableddb[$i] == "0") { 
                     $return .= "<tr><th><b>$vornamedb[$i]</b></th><th>$emaildb[$i]</th><th>" . date("d. F Y, H:i", $lastseendb) . "</th><th><a href='?page=disableuser&uid=$iddb[$i]'>Deaktiveren</a>, <a href='?page=recoverpw&uid=$iddb[$i]'>PW vergessen</a ></th></td>";
+                } else {
                 }
             }
             return($return);
@@ -286,7 +281,7 @@ class verwaltung {
 
     public function passwordRecovery($uid) {
         $uid = $this->DB->real_escape_string($uid);
-        $sql = "SELECT id, email FROM " . $this->config['databaseprefix'] . "accounts WHERE id = " . $uid;
+        $sql = "SELECT id, user, email, password FROM " . $this->config['databaseprefix'] . "accounts WHERE id = " . $uid;
         $result = $this->DB->query($sql);
         if($result === 0) {
            $num = 0;
@@ -296,22 +291,23 @@ class verwaltung {
         $k = 0;
         if($num > 0) {   
 	        while ($row = mysqli_fetch_assoc($result)) {
-		        $iddb[$k] = $row["id"];
+                $iddb[$k] = $row["id"];
+                $userdb[$k] = $row["user"];
                 $emaildb[$k] = $row["email"];
+                $passworddb[$k] = $row["password"];
 		        $k++;
 	        }
         }
-        mail($emaildb[0], "Passwort-Anfrage auf " . $this->config['host'], "Du hast ein neues Passwort auf " . $this->config['host'] . " angefragt. Klicke hier um ein neues Passwort zuzuweisen.");
+        mail($emaildb[0], "Zugriff auf " . $this->config['host'], "Dir wurde ein ein neues Passwort auf " . $this->config['host'] . " angefragt. Klicke folgenden Link, um es festzulegen: https://" . $this->config['host'] . "/admin/resetpw.php?n=" . $userdb[0] . "&p=" . substr($passworddb[0], 0, 16));
     }
 
     public function createNewUser($name, $email) {
         $name = $this->DB->real_escape_string($name);
         $email = $this->DB->real_escape_string($email);
-        // ToDo: Needs to be globalized and fixed
         $geheimerhash = $this->config['hashsecret'];
         $hash = sha1($name . microtime() . $geheimerhash);
         $username = "user" .  date('ydmhis');
-        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "accounts (id, user, password, vorname, email, lastseen, disabled) VALUES (NULL, '$username', '$hash', '$name', '$email', '0', '0');"; 
+        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "accounts (id, user, password, vorname, email, disabled) VALUES (NULL, '$username', '$hash', '$name', '$email', '0');"; 
         $this->DB->modify($sql);
         $mailtext = "Hallo " . $name . "!\nEs wurde soeben ein Account auf " . $this->config['host'] . " für dich angelgt. Bitte verwende den folgenden Link um deinen Account einzurichten: https://" . $this->config['host'] . "/admin/register.php?n=" . substr($username, 4) . "&p=" . substr($hash, 0, 16) . " .\nWenn du nicht weißt, wovon diese Mail handelt, ignoriere sie einfach.";
         mail($email, "Dein Zugriff auf " . $this->config['host'], $mailtext);
@@ -359,7 +355,6 @@ class verwaltung {
             }
         }
         $text = "";
-
         for($i = 0; $i < count($emaildb); $i++) {
             if($type == "newArticle") {
                 $text .= "Hallo " . $vornamedb[$i] . "!\nEs wurde der folgende Artikel auf " . $this->config['host'] . " angelegt:\n";
@@ -372,7 +367,6 @@ class verwaltung {
     public function GUIshowlogin($error = "") {
         $this->LAYOUTtop();
         echo '<div class="container">
-        
               <form method="post" action="index.php" class="form-signin" style="max-width: 330px;
               padding: 15px;
               margin: 0 auto;">
@@ -388,7 +382,9 @@ class verwaltung {
                 <button class="btn btn-lg btn-primary btn-block" type="submit">Einloggen</button>
               ';
         echo "<br/><small><a onClick=" . '"' . "document.getElementById('pwvergessen').style.display = 'block'" . '"' . ">Passwort vergessen?</a></small><div id='pwvergessen' style='display:none' class='alert alert-warning'>Es besteht keine Möglichkeit dir selbst das Passwort zurückzusetzen. Bitte frage jemanden aus dem Redaktionsteam, um das Passwort zurückzusetzten.</div></form> </div>";
-        echo "<span style='color:grey'>&copy; 2017 " . $this->config['devname'] . "</span><br />Fork me on GitHub!";
+        echo "</div><footer class='footer'><div class='container'><p class='text-muted'>&copy; 2017 " . $this->config['devname'] . " &bull; <a href='https://github.com/freddy2001/magazineCMS' target='_blank'>Fork me on GitHub!</a></p>
+        </div>
+      </footer>";
         $this->LAYOUTfooter();
     } 
 
@@ -408,6 +404,7 @@ class verwaltung {
 	        while ($row = mysqli_fetch_assoc($result)) {
 		        $iddb[$k] = $row["id"];
                 $titledb[$k] = $row["title"];
+                $teaserdb[$k] = $row["teaser"];
                 $createddb[$k] = $row["created"];
                 $urldb[$k] = $row["url"];
                 $aktuelldb[$k] = $row["aktuell"];
@@ -416,6 +413,7 @@ class verwaltung {
             }
             $iddb = $iddb[0];
             $titledb = $titledb[0];
+            $teaserdb = $teaserdb[0];
             $createddb = $createddb[0];
             $urldb = $urldb[0];
             $aktuelldb = $aktuelldb[0];
@@ -427,6 +425,7 @@ class verwaltung {
                 // Entwurf
                 $userid = $_SESSION['id'];
                 $title = $_POST['title'];
+                $teaser = $_POST['teaser'];
                 $created = $_POST['date'];
                 $id = $_POST['id'];
                 $lastmod = time();
@@ -443,12 +442,13 @@ class verwaltung {
                 $url = $this->DB->real_escape_string($url);
                 $userid = $this->DB->real_escape_string($userid);
                 $title = $this->DB->real_escape_string($title);
+                $teaser = $this->DB->real_escape_string($teaser);
                 $id = $this->DB->real_escape_string($id);
                 $created = $this->DB->real_escape_string($created);
                 $lastmod = $this->DB->real_escape_string($lastmod);
                 $aktuell = $this->DB->real_escape_string($aktuell);
                 $text = $this->DB->real_escape_string($text);
-                $sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', text = '" . $text . "', url = '" . $url . "' WHERE id = '" . $id . "';"; 
+                $sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "',  teaser = '" . $teaser . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', text = '" . $text . "', url = '" . $url . "' WHERE id = '" . $id . "';"; 
                 $this->DB->modify($sql);
                 header("Location: index.php?page=viewdraft&id=" . $id . "&msg=save");
                 // ToDo in Datenbank
@@ -477,6 +477,10 @@ class verwaltung {
           <label for='title'>Titel des Artikels</label>
             <input type='text' class='form-control' id='title' name='title' value='" . $titledb . "' placeholder='Gebe hier einen aussagekräftigen Titel an'>
         </div>
+        <div class='form-group'>
+        <label for='teaser'>Teaser</label>
+          <input type='text' class='form-control' id='teaser' name='teaser' value='" . $teaserdb . "' placeholder='Gebe hier einen knappe Zusammenfassung an'>
+      </div>
         <div class='form-group'>
             <label for='date'>Datum</label> 
             <input class='form-control' value='" . $createddb . "' name='date'>
@@ -522,6 +526,7 @@ class verwaltung {
                 // Entwurf
                 $userid = $_SESSION['id'];
                 $title = $_POST['title'];
+                $teaser = $_POST['teaser'];
                 $created = $_POST['date'];
                 $lastmod = time();
                 if($_POST['aktuelles'] == "yes")  {
@@ -537,11 +542,12 @@ class verwaltung {
                 $url = $this->DB->real_escape_string($url);
                 $userid = $this->DB->real_escape_string($userid);
                 $title = $this->DB->real_escape_string($title);
+                $teaser = $this->DB->real_escape_string($teaser);
                 $created = $this->DB->real_escape_string($created);
                 $lastmod = $this->DB->real_escape_string($lastmod);
                 $aktuell = $this->DB->real_escape_string($aktuell);
                 $text = $this->DB->real_escape_string($text);
-                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "drafts (id, userid, title, created, lastmod, url, aktuell, text) VALUES (NULL, '" . $userid . "', '" . $title . "', '" . $created . "', '" . $lastmod . "', '" . $url . "', '" . $aktuell . "', '" . $text . "');";
+                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "drafts (id, userid, title, teaser, created, lastmod, url, aktuell, text) VALUES (NULL, '" . $userid . "', '" . $title . "', '" . $teaser . "', '" . $created . "', '" . $lastmod . "', '" . $url . "', '" . $aktuell . "', '" . $text . "');";
                 $this->DB->modify($sql);
                 $this->writeLog("Draft " . $title . " was created by " . $_SESSION['id'] . " (" . $_SESSION['vorname'] . ").", "createdraft");
                 // ToDo in Datenbank
@@ -564,6 +570,10 @@ class verwaltung {
           <label for='title'>Titel des Artikels</label>
             <input type='text' class='form-control' id='title' name='title' placeholder='Gebe hier einen aussagekräftigen Titel an'>
         </div>
+        <div class='form-group'>
+        <label for='teaser'>Teaser</label>
+          <input type='text' class='form-control' id='teaser' name='teaser' placeholder='Gebe hier einen knappe Zusammenfassung an'>
+      </div>
         <div class='form-group'>
             <label for='date'>Datum</label> 
             <input class='form-control' value='" . date('d.m.Y') . "' name='date'>
@@ -809,6 +819,7 @@ class verwaltung {
                     $iddb[$k] = $row["id"];
                     $useriddb[$k] = $row["userid"];
                     $titledb[$k] = $row["title"];
+                    $teaserdb[$k] = $row["teaser"];
                     $createddb[$k] = $row["created"];
                     $lastmoddb[$k] = $row["lastmod"];
                     $urldb[$k] = $row["url"];
@@ -819,6 +830,7 @@ class verwaltung {
                 $iddb = $iddb[0];
                 $useriddb = $useriddb[0];
                 $titledb = $titledb[0];
+                $teaserdb = $teaserdb[0];
                 $createddb = $createddb[0];
                 $lastmoddb = $lastmoddb[0];
                 $urldb = $urldb[0];
@@ -857,7 +869,7 @@ class verwaltung {
                         $message .= "<div class='alert alert-danger'>Fehler: Der Artikel wurde nicht gepseichert: Die URL existiert bereits! Wähle einen anderen Titel!</div>";
                     } else {
                         $this->writeLog("Article: " . $titledb . ", URL: " . $urldb, "publisharticle");
-                        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "articles (id, userid, title, created, lastmod, url, aktuell, text, disabled) VALUES (NULL, '" . $useriddb . "', '" . $titledb . "', '" . $createddb . "', '" . $lastmoddb . "', '" . $urldb . "', '" . $aktuelldb . "', '" . $textdb . "', '0');";
+                        $sql = "INSERT INTO " . $this->config['databaseprefix'] . "articles (id, userid, title, teaser, created, lastmod, url, aktuell, text, disabled) VALUES (NULL, '" . $useriddb . "', '" . $titledb . "', '" . $teaserdb . "', '" . $createddb . "', '" . $lastmoddb . "', '" . $urldb . "', '" . $aktuelldb . "', '" . $textdb . "', '0');";
                         $this->DB->modify($sql);
                         $sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id = '" . $id . "';";
                         $this->DB->modify($sql);
@@ -892,7 +904,7 @@ class verwaltung {
         if(isset($_GET['id'])) {
             if(isset($_GET['confirm'])) {
                 $id = $this->DB->real_escape_string($_GET['id']);
-                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "draftsold (userid, title, created, lastmod, url, aktuell, text) SELECT userid, title, created, lastmod, url, aktuell, text FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " . $id . ";";
+                $sql = "INSERT INTO " . $this->config['databaseprefix'] . "draftsold (userid, title, teaser, created, lastmod, url, aktuell, text) SELECT userid, title, teaser, created, lastmod, url, aktuell, text FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " . $id . ";";
                 $this->DB->modify($sql);
                 $sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " .  $id . ";";
                 $this->DB->modify($sql);
@@ -905,7 +917,6 @@ class verwaltung {
         } else {
             echo "Bitte die ID des Entwurfes angeben";
         }
-
         $this->LAYOUTfooter();
     }
 
@@ -921,17 +932,23 @@ class verwaltung {
         <div class='col-md-9'>
         <input id='name' name='name' type='text' placeholder='Your name' class='form-control' value='" . $_SESSION['vorname'] . "'>
         </div>
-        </div>
+        </div><!--
         <div class='form-group'>
         <label class='col-md-3 control-label' for='email'>E-Mail</label>
         <div class='col-md-9'>
         <input id='email' name='email' type='email' placeholder='E-Mail' class='form-control' value=''>
         </div>
-        </div>
+        </div>-->
         <div class='form-group'>
         <label class='col-md-3 control-label' for='pwchange'>Passwort</label>
         <div class='col-md-9'>
-        <a href='' id='pwchange' class='btn btn-primary'>Passwort ändern</a>
+        <a onClick=" . '"' . "document.getElementById('pwchangeform').style.display = 'inline'" . '"' . " id='pwchange' class='btn btn-primary'>Passwort ändern</a>
+        <div id='pwchangeform' style='display:none'>
+        <input name='pwold' type='password' class='form-control' placeholder='Dein aktuelles Passwort'>
+        <input name='pwnew' type='password' class='form-control' placeholder='Dein neues Passwort'>
+        <input name='pwconfirm' type='password' class='form-control' placeholder='Bestätige dein neues Passwort'>
+        <input type='button' value='Ändern'>
+        </div>
         </div>
         </div>
         <div class='form-group'>
@@ -965,29 +982,24 @@ class verwaltung {
         <label class='col-md-3 control-label' for='na'>Neuer Artikel</label>
         <div class='col-md-9'>
         <label style='font-weight:normal'>
-          <input type='checkbox' id='na' value=''>
-          Benachrichtige mich, wenn ein neuer Artikel veröffentlicht wurde.
+        <input type='checkbox' id='na' value=''>
+        Benachrichtige mich, wenn ein neuer Artikel veröffentlicht wurde.
         </label>
-      </div>
+        </div>
         </div>
         <div class='form-group'>
         <label class='col-md-3 control-label' for='email'>Neuer Benutzer</label>
         <div class='col-md-9'>
         <label style='font-weight:normal'>
-          <input type='checkbox' value=''>
-          Benachrichtige mich, wenn ein neuer Account angelegt wurde.
+        <input type='checkbox' value=''>
+        Benachrichtige mich, wenn ein neuer Account angelegt wurde.
         </label>
-      </div>
+        </div>
         </div>
         <div class='text-center'><br /><br />
         <input class='btn btn-success text-center' type='submit' value='Einstellungen ändern'></div>
         </div>
-        </form>
-       
-      
-      
-        ";
-
+        </form>";
         $this->LAYOUTfooter();
     }
 
@@ -996,6 +1008,30 @@ class verwaltung {
         $return = "<!doctype>\n<html>\n\t<head>
         <title>Verwaltung | " . $this->config['name'] . "</title>
         <link rel='stylesheet' href='bootstrap.min.css'>
+        <style>
+        /* Sticky footer styles
+        -------------------------------------------------- */
+        html {
+          position: relative;
+          min-height: 100%;
+        }
+        body {
+          /* Margin bottom by footer height */
+          margin-bottom: 60px;
+        }
+        .footer {
+          position: absolute;
+          bottom: 0;
+          width: 100%;
+          /* Set the fixed height of the footer here */
+          height: 60px;
+          background-color: #f5f5f5;
+        }
+        .container .text-muted {
+            margin: 20px 0;
+          }
+          
+        </style>        
     </head>
     <body>
     <nav class='navbar navbar-light navbar-static-top' style='background-color: " . $this->config['accentcolor'] . ";'>
