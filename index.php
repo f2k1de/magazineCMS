@@ -502,8 +502,8 @@ class verwaltung {
                 }
                 $text = $_POST['text'];
                 $url = strtolower($title);
-                $vokale = array("a", "o", "u", "-", "ss");
-                $umlaute = array("ä", "ö", "ü", " ", "ß");
+                $vokale = array("a", "o", "u", "a", "o", "u", "-", "ss");
+                $umlaute = array("A", "Ö", "Ü", "ä", "ö", "ü", " ", "ß");
                 $url = str_replace($umlaute, $vokale, $url);
                 $url = $this->DB->real_escape_string($url);
                 $userid = $this->DB->real_escape_string($userid);
@@ -630,8 +630,8 @@ class verwaltung {
                 }
                 $text = $_POST['text'];
                 $url = strtolower($title);
-                $vokale = array("a", "o", "u", "-", "ss");
-                $umlaute = array("ä", "ö", "ü", " ", "ß");
+                $vokale = array("a", "o", "u", "a", "o", "u", "-", "ss");
+                $umlaute = array("A", "Ö", "Ü", "ä", "ö", "ü", " ", "ß");
                 $url = str_replace($umlaute, $vokale, $url);
                 $url = $this->DB->real_escape_string($url);
                 $userid = $this->DB->real_escape_string($userid);
@@ -775,8 +775,8 @@ class verwaltung {
       <div class='row'>
         <div class='col-xs-6 col-lg-4'>
           <h2>Statistiken</h2>
-          <p>Hier geht es zu den Webseitenstatistiken. <br />Benutzer: , Passwort: </b></p>
-          <p><a class='btn btn-default' href='#' disabled='disabled' role='button'>Weiter &raquo;</a></p>
+            <p>Hier geht es zu den Webseitenstatistiken. <br />Benutzer: , Passwort: </b></p>
+            <p><a class='btn btn-default' href='#' disabled='disabled' role='button'>Weiter &raquo;</a></p>
         </div><!--/.col-xs-6.col-lg-4-->
         </div>
         ";
@@ -1118,6 +1118,7 @@ class verwaltung {
 
     public function LAYOUTtop() {
         // ToDo: HTML-Top
+        header('Content-Type: text/html; charset=utf-8');
         $return = "<!doctype>\n<html>\n\t<head>
         <title>Verwaltung | " . $this->config['name'] . "</title>
         <link rel='stylesheet' href='bootstrap.min.css'>
