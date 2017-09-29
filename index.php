@@ -769,8 +769,8 @@ class verwaltung {
 	  <div class='row'>
 		<div class='col-xs-6 col-lg-4'>
 		  <h2>Statistiken</h2>
-			<p>Hier geht es zu den Webseitenstatistiken. <br />Benutzer: , Passwort: </b></p>
-			<p><a class='btn btn-default' href='#' disabled='disabled' role='button'>Weiter &raquo;</a></p>
+			<p>Hier geht es zu den Webseitenstatistiken. <br />Benutzer: " . $this->config['statisticsuser'] . ", Passwort: " . $this->config['statisticspassword'] . "</b></p>
+			<p><a class='btn btn-default' href='" . $this->config['statisticsurl'] . "' role='button'>Weiter &raquo;</a></p>
 		</div><!--/.col-xs-6.col-lg-4-->
 		</div>
 		";

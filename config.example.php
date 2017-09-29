@@ -7,5 +7,8 @@
         "hashsecret" => "s0m€secre++ex+",
         "version" => "alpha",
 	"databaseprefix" => "databaseprefix_",
+	"statisticsurl" => "https://stats.example.com/",
+	"statisticsuser" => "someuser",
+	"statisticspassword" => "somethingsecret",
     );
 ?>
