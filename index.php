@@ -968,6 +968,7 @@ class verwaltung {
 						$this->DB->modify($sql);
 						$sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id = '" . $id . "';";
 						$this->DB->modify($sql);
+						$this->broadcastMail($titledb . " –  " . $this->config['host'] . "/a/" . $urldb, "newArticle");
 						$message .= "<div class='alert alert-success'>Artikel wurde veröffentlicht</div>";
 						$disablebuttons = true;
 					}
