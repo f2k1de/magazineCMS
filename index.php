@@ -409,9 +409,9 @@ class verwaltung {
 				$k++;
 			}
 		}
-		$text = "";
 		for($i = 0; $i < count($emaildb); $i++) {
 			if($type == "newArticle") {
+				$text = "";
 				$text .= "Hallo " . $vornamedb[$i] . "!\nEs wurde der folgende Artikel auf " . $this->config['host'] . " angelegt:\n";
 				$text .= $mailtext . "\nFreundliche Grüße, dein " . $this->config['host'] . " Benachrichtgungssystem.";
 				mail($emaildb[$i], $this->config['host'] . ": Es wurde ein neuer Artikel angelegt.", $text);
