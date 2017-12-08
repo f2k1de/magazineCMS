@@ -1140,6 +1140,8 @@ class verwaltung {
 			margin: 20px 0;
 		}
 		</style>
+
+		<link rel='stylesheet' href='/scripts/lightbox/css/lightbox.css'>
 	</head>
 	<body>
 	<nav class='navbar navbar-light navbar-static-top' style='background-color: " . $this->config['accentcolor'] . ";'>
@@ -1163,3 +1165,4 @@ class verwaltung {
 
 $tool = new verwaltung();
 ?>
+
