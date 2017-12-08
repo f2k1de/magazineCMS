@@ -444,7 +444,6 @@ class verwaltung {
 	} 
 
 	public function GUIeditDraft() {
-		$this->LAYOUTtop();
 		$id = $_GET['id'];
 		$id = $this->DB->real_escape_string($id);
 		$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "drafts WHERE id = '" . $id . "';";
@@ -514,6 +513,7 @@ class verwaltung {
 				$sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "',  teaser = '" . $teaser . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', details = '" . $details . "', text = '" . $text . "', url = '" . $url . "' WHERE id = '" . $id . "';"; 
 				$this->DB->modify($sql);
 				header("Location: index.php?page=viewdraft&id=" . $id . "&msg=save");
+				$this->LAYOUTtop();
 				// ToDo in Datenbank
 				echo "<div class='alert alert-success'>Entwurf geichert !</div>";
 				echo "Meine Entwürfe:
@@ -527,9 +527,8 @@ class verwaltung {
 				" . $this->showMyDrafts() . "</tbody></table>";
 			} 
 		} else {
-		$vorname = $_SESSION['vorname'];
-		echo "Willkommen, $vorname. <br />
-		<a href='index.php?page=mydrafts' class='btn btn-secondary'>← Zurück zur Übersicht</a><br />
+		$this->LAYOUTtop();
+		echo "<a href='index.php?page=mydrafts' class='btn btn-secondary'>← Zurück zur Übersicht</a><br />
 		";
 		$meldung = "";
 		echo "Einen Artikel bearbeiten: <br />$meldung
