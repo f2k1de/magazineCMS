@@ -419,6 +419,11 @@ class verwaltung {
 		}
 	}
 
+	public function showFiles() {
+		$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "files;";
+		
+	}
+
 	public function GUIshowlogin($error = "") {
 		$this->LAYOUTtop();
 		echo '<div class="container">
@@ -1026,7 +1031,7 @@ class verwaltung {
 		echo  "<div class='row'>
 		<div class='col-md-6 col-md-offset-3'>
 		<legend class='text-center'>Allgemeine Einstellungen</legend>
-		<form class='form-horizontal'>
+		<form class='form-horizontal' method='post' action='?page=settings'>
 		<div class='form-group'>
 		<label class='col-md-3 control-label' for='name'>Name</label>
 		<div class='col-md-9'>
@@ -1110,6 +1115,12 @@ class verwaltung {
 		$this->LAYOUTfooter();
 	}
 
+	public function GUIlistfiles() {
+		$this->LAYOUTtop();
+		echo "<a href='index.php' class='btn btn-secondary'>← Zurück zur Auswahl</a><br />" . $this->showFiles();
+		$this->LAYOUTfooter();
+	}
+
 	public function LAYOUTtop() {
 		// ToDo: HTML-Top
 		header('Content-Type: text/html; charset=utf-8');
@@ -1164,4 +1175,3 @@ class verwaltung {
 
 $tool = new verwaltung();
 ?>
-
