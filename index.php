@@ -362,7 +362,7 @@ class verwaltung {
 		$geheimerhash = $this->config['hashsecret'];
 		$hash = sha1($name . microtime() . $geheimerhash);
 		$username = "user" .  date('ydmhis');
-		$sql = "INSERT INTO " . $this->config['databaseprefix'] . "accounts (id, user, password, vorname, email, disabled) VALUES (NULL, '$username', '$hash', '$name', '$email', '0');"; 
+		$sql = "INSERT INTO " . $this->config['databaseprefix'] . "accounts (id, user, password, vorname, email, disabled, sendmailna, sendmailnu) VALUES (NULL, '$username', '$hash', '$name', '$email', '0', '0', '0');"; 
 		$this->DB->modify($sql);
 		$mailtext = "Hallo " . $name . "!\nEs wurde soeben ein Account auf " . $this->config['host'] . " für dich angelgt. Bitte verwende den folgenden Link um deinen Account einzurichten: https://" . $this->config['host'] . "/admin/register.php?n=" . substr($username, 4) . "&p=" . substr($hash, 0, 16) . " .\nWenn du nicht weißt, wovon diese Mail handelt, ignoriere sie einfach.";
 		mail($email, "Dein Zugriff auf " . $this->config['host'], $mailtext);
@@ -1026,6 +1026,39 @@ class verwaltung {
 	}
 
 	public function GUIuserSettings() {
+		if(isset($_POST['name'])) {
+			$id = $_SESSION['id'];
+			if($_SESSION['vorname'] != $_POST['name']){
+				$vorname = $this->DB->real_escape_string($_POST['name']);
+				$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET vorname = '" . $vorname . "' WHERE id = '" . $id . "'";
+				$this->DB->modify($sql);
+				$_SESSION['vorname'] = $vorname;
+			}
+
+			if(isset($_POST['neueraccountemail'])) {
+				if($_POST['neueraccountemail'] == 1) {
+					// Enable
+					$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailnu = '1' WHERE id = '" . $id . "'";
+					$this->DB->modify($sql);
+				}
+			} else {
+				// Disable
+				$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailnu = '0' WHERE id = '" . $id . "'";
+				$this->DB->modify($sql);
+			}
+			if(isset($_POST['neuerartikelemail'])) {
+				if($_POST['neuerartikelemail'] == 1) {
+					// Enable
+					$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailna = '1' WHERE id = '" . $id . "'";
+					$this->DB->modify($sql);
+				}
+			} else {
+				// Disable
+				$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailna = '0' WHERE id = '" . $id . "'";
+				$this->DB->modify($sql);
+			}
+		}
+
 		$this->LAYOUTtop();
 		echo "<a href='index.php' class='btn btn-secondary'>← Zurück zur Auswahl</a>";
 		echo  "<div class='row'>
@@ -1063,12 +1096,12 @@ class verwaltung {
 		$sql = "SELECT timestamp, device FROM " . $this->config['databaseprefix'] . "logins WHERE userid = '" . $_SESSION['id'] . "' ORDER BY timestamp DESC LIMIT 1 OFFSET 1;";
 		$result = $this->DB->query($sql);
 		if($result === 0) {
-		   $num = 0;
+			$num = 0;
 		} else {
 			$num = mysqli_num_rows($result);
 		}
 		$k = 0;
-		if($num > 0) {   
+		if($num > 0) {
 			while ($row = mysqli_fetch_assoc($result)) {
 				$lastseendb = $row["timestamp"];
 				$device = $row["device"];
@@ -1087,7 +1120,16 @@ class verwaltung {
 		<label class='col-md-3 control-label' for='na'>Neuer Artikel</label>
 		<div class='col-md-9'>
 		<label style='font-weight:normal'>
-		<input type='checkbox' id='na' value=''>
+		<input type='checkbox' id='na' name='neuerartikelemail' value='1'";
+		$sql = "SELECT sendmailna FROM " . $this->config['databaseprefix'] . "accounts WHERE id = '" . $_SESSION['id'] . "';";
+		$result = $this->DB->query($sql);
+		while ($row = mysqli_fetch_assoc($result)) {
+			$checked = $row["sendmailna"][0];
+		}
+		if($checked) {
+			echo " checked";
+		}
+		echo ">
 		Benachrichtige mich, wenn ein neuer Artikel veröffentlicht wurde.
 		</label>
 		</div>
@@ -1096,7 +1138,16 @@ class verwaltung {
 		<label class='col-md-3 control-label' for='email'>Neuer Benutzer</label>
 		<div class='col-md-9'>
 		<label style='font-weight:normal'>
-		<input type='checkbox' value=''>
+		<input type='checkbox' name='neueraccountemail' value='1'";
+		$sql = "SELECT sendmailnu FROM " . $this->config['databaseprefix'] . "accounts WHERE id = '" . $_SESSION['id'] . "';";
+		$result = $this->DB->query($sql);
+		while ($row = mysqli_fetch_assoc($result)) {
+			$checked = $row["sendmailnu"][0];
+		}
+		if($checked) {
+			echo " checked";
+		}
+		echo ">
 		Benachrichtige mich, wenn ein neuer Account angelegt wurde.
 		</label>
 		</div>
