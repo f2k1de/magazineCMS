@@ -16,9 +16,9 @@ class verwaltung {
 					$this->GUIshowlogin("<div class='alert alert-danger'><b>Fehler beim Login:</b> Dieses Konto wurde deaktiviert.</div>");
 				} else if($this->dologin($_POST['user'], $_POST['password']) == "nein") {
 					$this->GUIshowlogin("<div class='alert alert-danger'><b>Fehler beim Login:</b> Leider ist diese Kombination nicht bekannt.</div>");
-					// Zeige fehler beim Login
+					// Show error at login
 				} else {
-					// Zeige Dashboard
+					// Show Dashboard
 					$device = $_SERVER['HTTP_USER_AGENT'];
 					$device = $this->DB->real_escape_string($device);
 					$ip = $_SERVER['REMOTE_ADDR'];
@@ -29,43 +29,60 @@ class verwaltung {
 					$this->DB->modify($sql);
 					$this->GUIshowDashboard();
 				}
-				// Logge in
+				// Log in
 			} else {
 				$this->GUIshowlogin();
 			}
 			//Show login
 		} else {
-			// Login erfolgreich
+			// Login successfull
 			if(!isset($_GET['page'])) {
 				$this->GUIshowDashboard();
-			} else if($_GET['page'] == 'logout') {
-				$this->dologout();
-			} else if ($_GET['page'] == 'newarticle') {
-				$this->GUInewarticle();
-			} else if ($_GET['page'] == 'mydrafts') {
-				$this->GUImyDrafts();
-			} else if ($_GET['page'] == 'menu') {
-				$this->GUImenu();
-			} else if ($_GET['page'] == 'ausgaben') {
-				$this->GUIausgaben();
-			} else if ($_GET['page'] == 'staff') {
-				$this->GUIstaff();
-			} else if ($_GET['page'] == 'disableuser') {
-				$this->GUIdisableUser();
-			} else if ($_GET['page'] == 'recoverpw') {
-				$this->GUIrecoverpw();
-			} else if ($_GET['page'] == 'register') {
-				$this->GUIregister();
-			} else if ($_GET['page'] == 'viewdraft') {
-				$this->GUIviewDraft();
-			} else if ($_GET['page'] == 'deldraft') {
-				$this->GUIdelDraft();
-			} else if ($_GET['page'] == 'editdraft') {
-				$this->GUIeditDraft();
-			} else if ($_GET['page'] == 'settings') {
-				$this->GUIuserSettings();
 			} else {
-				$this->GUIshowDashboard();
+				switch($_GET['page']) {
+					case 'logout':
+						$this->dologout();
+						break;
+					case 'newarticle':
+						$this->GUInewarticle();
+						break;
+					case 'mydrafts':
+						$this->GUImyDrafts();
+						break;
+					case 'menu':
+						$this->GUImenu();
+						break;
+					case 'ausgaben':
+						$this->GUIausgaben();
+						break;
+					case 'staff':
+						$this->GUIstaff();
+						break;
+					case 'disableuser':
+						$this->GUIdisableUser();
+						break;
+					case 'recoverpw':
+						$this->GUIrecoverpw();
+						break;
+					case 'register':
+						$this->GUIregister();
+						break;
+					case 'viewdraft':
+						$this->GUIviewDraft();
+						break;
+					case 'deldraft':
+						$this->GUIdelDraft();
+						break;
+					case 'editdraft':
+						$this->GUIeditDraft();
+						break;
+					case 'settings':
+						$this->GUIuserSettings();
+						break;
+					default:
+						$this->GUIshowDashboard();
+						break;
+				}
 			}
 		}
 	}
