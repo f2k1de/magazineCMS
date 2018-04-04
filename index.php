@@ -2,14 +2,11 @@
 # Verwaltungsmodul
 # (c) 2017 IK
 
-error_reporting(E_ALL);
-//require("../assets/DBCore.php");
-require('./Database.php');
+require './base.php';
 
 class verwaltung {
 	function __construct() {
-		session_start();
-		$this->DB = new DBCore ('dbtest');
+		$this->DB = new DB();
 		$this->config = require('config.php');
 		if(!isset($_SESSION['loggedin']) OR ($_SESSION['loggedin'] !== true)) {
 			 if(isset($_POST['user']) && isset($_POST['password'])) {
@@ -1055,46 +1052,15 @@ class verwaltung {
 	public function LAYOUTtop() {
 		// ToDo: HTML-Top
 		header('Content-Type: text/html; charset=utf-8');
-		$return = "<!doctype>\n<html>\n\t<head>
-		<title>Verwaltung | " . $this->config['name'] . "</title>
-		<link rel='stylesheet' href='bootstrap.min.css'>
-		<style>
-		/* Sticky footer styles
-		-------------------------------------------------- */
-		html {
-			position: relative;
-			min-height: 100%;
+		$vorname = 0;
+		if(isset($_SESSION['vorname'])) {
+			$vorname = $_SESSION['vorname'];
 		}
-		body {
-			/* Margin bottom by footer height */
-			margin-bottom: 60px;
-		}
-		.footer {
-			position: absolute;
-			bottom: 0;
-			width: 100%;
-			/* Set the fixed height of the footer here */
-			height: 60px;
-			background-color: #f5f5f5;
-		}
-		.container .text-muted {
-			margin: 20px 0;
-		}
-		</style>
-
-		<link rel='stylesheet' href='/scripts/lightbox/css/lightbox.css'>
-	</head>
-	<body>
-	<nav class='navbar navbar-light navbar-static-top' style='background-color: " . $this->config['accentcolor'] . ";'>
-	<div class='container'>
-	<div class='navbar-brand' style='color:white'><big>" . $this->config['name'] . " - Verwaltung</big></div>";
-	if(isset($_SESSION['vorname'])) {
-		$vorname = $_SESSION['vorname'];
-		$return .= "<span class='navbar-text navbar-right' style='color:white;'>$vorname. <small><a href='?page=logout' class='navbar-link' style='color:white;'>Abmelden</a></small></span>";
-	}
-	$return .= "</nav>
-		<div><div class='container'>";
-		echo($return);
+		$tpl->render('header', [
+			'NAME' => $this->config['name'],
+			'ACCENTCOLOR' => $this->config['accentcolor'],
+			'VORNAME' => $vorname,
+		]);
 	}
 
 	public function LAYOUTfooter() {
