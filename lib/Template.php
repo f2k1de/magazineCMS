@@ -269,6 +269,6 @@ class Template {
 		}
 
 		$this->compile($file.'.tpl');
-		exit();
+		//exit();
 	}
 }

@@ -664,57 +664,12 @@ class verwaltung {
 
 	public function GUIshowDashboard() {
 		$this->LAYOUTtop();
-		$vorname = $_SESSION['vorname'];
-		echo "<div style='text-align:center;'><h2>Willkommen, $vorname!</h2><p class='lead'>Bitte wähle aus, was du tun möchtest:</p><!--<ul>
-		<li><a href='?page=newarticle'>Neuen Artikel schreiben</a></li>
-		<li><a href='?page=mydrafts'>Meine Entwürfe</a></li>
-		<li><a href='?page=menu'>Menü bearbeiten</a></li>
-		<li>Ausgaben bearbeiten</li>
-		<li><a href='?page=staff'>Redaktion & Zugriff</a></li>
-		<li><a href='?page=logout'>Logout</a></li>
-		<ul>
-		--></div>
-		<div class='row'>
-		<div class='col-xs-6 col-lg-4'>
-		  <h2>Neuen Artikel schreiben</h2>
-		  <p>Klicke hier, wenn du einen neuen Artikel anfagen möchstest.    </p>
-		  <p><a class='btn btn-default' href='?page=newarticle' role='button'>Weiter &raquo;</a></p>
-		</div><!--/.col-xs-6.col-lg-4-->
-		<div class='col-xs-6 col-lg-4'>
-		  <h2>Meine Entwürfe</h2>
-		  <p>Hier kannst du deine bereits angefangenen Artikel, die aber noch nicht auf der Webseite veröffentlicht wurden, ansehen. Hier kannst du weiterschreiben und sie auch veröffentlichen.</p>
-		  <p><a class='btn btn-default' href='?page=mydrafts' role='button'>Weiter &raquo;</a></p>
-		</div><!--/.col-xs-6.col-lg-4-->
-		<div class='col-xs-6 col-lg-4'>
-		  <h2>Menü bearbeiten</h2>
-		  <p>Hier kann das Menü, welches unten links auf der Webseite ist, bearbeitet werden. Es sind bis zu fünf einträge möglich. Im Regelfall sollte es jedoch keinen Änderungsbedarf geben.</p>
-		  <p><a class='btn btn-default' href='?page=menu' role='button'>Weiter &raquo;</a></p>
-		</div><!--/.col-xs-6.col-lg-4-->
-		<div class='col-xs-6 col-lg-4'>
-		  <h2>Ausgaben bearbeiten</h2>
-		  <p>Auf der Webseite werden die Online-Artikeln zu Printversionen zugeordnet. Hier kannst du die einzelen Printausgaben einsehen und die Artikel zuordnen.</p>
-		  <p><a class='btn btn-default' disabled='disabled' href='#' role='button'>Weiter &raquo;</a></p>
-		</div><!--/.col-xs-6.col-lg-4-->
-		<div class='col-xs-6 col-lg-4'>
-		  <h2>Redaktion und Zugriff</h2>
-		  <p>Hier kannst du neue Accounts für die Webseite erstellen oder Passwörter für vergessene Anfragen</p>
-		  <p><a class='btn btn-default' href='?page=staff' role='button'>Weiter &raquo;</a></p>
-		</div><!--/.col-xs-6.col-lg-4-->
-		<div class='col-xs-6 col-lg-4'>
-		<h2>Einstellungen</h2>
-		<p>Hier geht es zu deinen Benutzereinstellungen</b></p>
-		<p><a class='btn btn-default' href='?page=settings' role='button'>Weiter &raquo;</a></p>
-	  </div><!--/.col-xs-6.col-lg-4-->
-	  </div>
-	  <div class='row'>
-		<div class='col-xs-6 col-lg-4'>
-		  <h2>Statistiken</h2>
-			<p>Hier geht es zu den Webseitenstatistiken. <br />Benutzer: " . $this->config['statisticsuser'] . ", Passwort: " . $this->config['statisticspassword'] . "</b></p>
-			<p><a class='btn btn-default' href='" . $this->config['statisticsurl'] . "' role='button'>Weiter &raquo;</a></p>
-		</div><!--/.col-xs-6.col-lg-4-->
-		</div>
-		";
-		$this->LAYOUTfooter();
+		$this->tpl->render('dashboard', [
+			'VORNAME' => $_SESSION['vorname'],
+			'STATUSER' => $this->config['statisticsuser'] ,
+			'STATUSERPW' => $this->config['statisticspassword'],
+			'STATURL' => $this->config['statisticsurl'],
+		]);
 	}
 
 	public function GUImenu() {
@@ -726,18 +681,9 @@ class verwaltung {
 
 	public function GUIstaff() {
 		$this->LAYOUTtop();
-		$vorname = $_SESSION['vorname'];
-		echo "<a href='index.php' class='btn btn-secondary'>← Zurück zur Auswahl</a><br />
-		<a href='index.php?page=register' class='btn btn-primary'>Neues Mitglied anmelden.</a>
-		<table class='table'>
-			<thead>
-			<tr>
-			<th>Name</th><th>E-Mail</th><th>Letzter Login</th><th>Aktion</th>
-			</tr>
-
-			</thead>
-			<tbody>" . $this->getStaff();
-		echo "</tbody></table>";
+		$this->tpl->render('staff', [
+			'STAFF' => $this->getStaff(),
+		]);
 		$this->LAYOUTfooter();
 	}
 
@@ -1069,9 +1015,7 @@ class verwaltung {
 	}
 
 	public function LAYOUTfooter() {
-		$return = "</div>\n</body>\n</html>";
-		echo $return;
-		// ToDo: HTML-Footer
+		$this->tpl->render('footer');
 	}
 }
 
