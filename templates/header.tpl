@@ -30,7 +30,7 @@
 		<link rel='stylesheet' href='/scripts/lightbox/css/lightbox.css'>
 	</head>
 	<body>
-	<nav class='navbar navbar-light navbar-static-top' style='background-color: {ACCENTCOLOR};'>
+	<nav class='navbar navbar-light navbar-static-top' style='background-color: {ACCENT} ;'>
 	<div class='container'>
 	<div class='navbar-brand' style='color:white;'><big>{NAME} - Verwaltung</big></div>";
 	<!-- IF VORNAME -->

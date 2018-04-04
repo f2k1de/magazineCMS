@@ -5,4 +5,4 @@ define('PATH', __DIR__);
 
 require PATH . '/lib/Database.php';
 require PATH . '/lib/Template.php';
-$tpl = new Template(PATH.'/templates', PATH.'/cache/tpl', $global_pagevars);
+

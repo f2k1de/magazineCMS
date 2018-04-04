@@ -6,6 +6,11 @@ require './base.php';
 
 class verwaltung {
 	function __construct() {
+		$global_pagevars = [
+			'PROJECTNAME' => 'Kolbepost',
+		];
+		$this->tpl = new Template(PATH.'/templates', PATH.'/cache/tpl', $global_pagevars);
+
 		$this->DB = new DB();
 		$this->config = require('config.php');
 		if(!isset($_SESSION['loggedin']) OR ($_SESSION['loggedin'] !== true)) {
@@ -1056,9 +1061,9 @@ class verwaltung {
 		if(isset($_SESSION['vorname'])) {
 			$vorname = $_SESSION['vorname'];
 		}
-		$tpl->render('header', [
+		$this->tpl->render('header', [
 			'NAME' => $this->config['name'],
-			'ACCENTCOLOR' => $this->config['accentcolor'],
+			'ACCENT' => $this->config['accentcolor'],
 			'VORNAME' => $vorname,
 		]);
 	}

@@ -248,7 +248,7 @@ class Template {
 		$tpl = preg_replace_callback("#<!-- ([A-Z]+) (.*)? ?-->#U", array($this, 'compileTags'), $tpl);
 		$tpl = preg_replace_callback("#{([A-Za-z0-9_\-.]+)}#U", array($this, 'compileVars'), $tpl);
 
-		$tpl = $this->minify_html($tpl);
+		//$tpl = $this->minify_html($tpl);
 
 		if (eval(' ?>'.$tpl.'<?php ') === false) {
 			$this->error();

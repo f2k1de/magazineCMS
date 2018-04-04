@@ -1,4 +1,4 @@
-	<?php
+<?php
 
 class DB {
 	private $connection = NULL;
@@ -8,7 +8,8 @@ class DB {
 	private $dbconfig;
 
 	public function __construct(){
-		$this->dbconfig = require('config.php')['db'];
+		$config = require('config.php');
+		$this->dbconfig = $config['db'];
 		$this->connection = new mysqli($this->dbconfig['host'], $this->dbconfig['user'], $this->dbconfig['password'], $this->dbconfig['database']);
 		$this->connection->query("SET NAMES 'utf8'");
 	}
