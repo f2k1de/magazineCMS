@@ -3,7 +3,8 @@
 # (c) 2017 IK
 
 error_reporting(E_ALL);
-require("../assets/DBCore.php");
+//require("../assets/DBCore.php");
+require('./Database.php');
 
 class verwaltung {
 	function __construct() {
@@ -25,8 +26,7 @@ class verwaltung {
 					$ip = $this->DB->real_escape_string($ip);
 					$timestamp = time();
 					$sql = "INSERT INTO " . $this->config['databaseprefix'] . "logins (id, userid, timestamp, ip, device) VALUES (NULL, '" . $_SESSION['id'] . "', '" . $timestamp . "', '" . $ip . "', '" . $device . "');";
-					//$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET lastseen = '" . time() . "' WHERE id = " . $iddb[0] . "   ;";
-					$this->DB->modify($sql);
+					$this->DB->query($this->DB->escape($sql));
 					$this->GUIshowDashboard();
 				}
 				// Log in
@@ -79,6 +79,9 @@ class verwaltung {
 					case 'settings':
 						$this->GUIuserSettings();
 						break;
+					case 'viewfiles':
+						$this->GUIlistFiles();
+						break;
 					default:
 						$this->GUIshowDashboard();
 						break;
@@ -94,46 +97,35 @@ class verwaltung {
 			return(false);
 		}
 		$password = sha1($password . $this->config['hashsecret']);
-		$username = $this->DB->real_escape_string($username);
+		$username = $this->DB->escape($username);
 		$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "accounts WHERE user = '" . $username . "'";
-
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-			$num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		$userdb = "";
-		$passworddb = "";
-		if($num > 0) {
-			$k = 0;
-			while ($row = mysqli_fetch_assoc($result)) {
-				$iddb[$k] = $row["id"];
-				$userdb[$k] = $row["user"];
-				$passworddb[$k] = $row["password"];
-				$namedb[$k] = $row["vorname"];
-				$disableddb[$k] = $row["disabled"];
-				$k++;
-			}
-			$userdb = $userdb[0];
-			$passworddb = $passworddb[0];
-			$disableddb = $disableddb[0];
+		$this->DB->query($sql);
+		$userdb = null;
+		$passworddb = null;
+		$disableddb = null;
+		if($this->DB->count() > 0) {
+			$result = $this->DB->fetchRow();
+			$userdb = $result['user'];
+			$passworddb = $result['password'];
+			$disableddb = $result['disabled'];
+			$namedb = $result['vorname'];
+			$iddb = $result['id'];
 		}
 		$login = true;
-		$disabled = "nein";
+		$disabled = false;
 		if($username != $userdb) {
 			$login = false;
 		}
 		if($password != $passworddb) {
 			$login = false;
 		}
-		if(@$disableddb == "1") {
-			$disabled = "ja";
+		if($disableddb == "1") {
+			$disabled = true;
 			$login = false;
 		} else {
-			$disabled = "nein";
+			$disabled = false;
 		}
-		if($disabled == "ja") {
+		if($disabled) {
 			return("disabled");
 		}
 		if($login == false) {
@@ -155,36 +147,23 @@ class verwaltung {
 	}
 
 	public function showMyDrafts() {
-		$id = $this->DB->real_escape_string($_SESSION['id']);
+		$id = $this->DB->escape($_SESSION['id']);
 		$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "drafts WHERE userid = '" . $id . "'  ORDER BY lastmod DESC;";
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-			$num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		if($num > 0) {
-			$k = 0;
-			while ($row = mysqli_fetch_assoc($result)) {
-				$iddb[$k] = $row["id"];
-				$titledb[$k] = $row["title"];
-				$teaserdb[$k] = $row["teaser"];
-				$createdb[$k] = $row["created"];
-				$lastmoddb[$k] = $row["lastmod"];
-				$textdb[$k] = $row["text"];
-				$k++;
-			}
+		$this->DB->query($sql);
+		$result = $this->DB->fetchAllRows();
 
-			$return = "";
-			for($i=0; $i < $k; $i++) {
-				$return .= "<tr><th>" . "$titledb[$i]</th><th>$createdb[$i]</th><th>" . date('d.m.Y',$lastmoddb[$i]) . "</th><th>$teaserdb[$i]</th><th><a href='?page=viewdraft&id=" . $iddb[$i] . "'>Bearbeiten</a>" . "</tr>\n";
-			}
+		$return = "";
+		for($i=0; $i < $k; $i++) {
+			$return .= "<tr><th>" . "$result[$i]['title']</th><th>$result[$i]['created']</th><th>" . date('d.m.Y',$result[$i]['lastmod']) . "</th><th>$result[$i]['teaser']</th><th><a href='?page=viewdraft&id=" . $result[$i]['id'] . "'>Bearbeiten</a>" . "</tr>\n";
+		}
+		if($return != "") {
 			return($return);
 		} else {
 			return("Du hast keine Entwürfe angelegt.");
 		}
 	}
 
+	//ToDo: New Database driver
 	public function showAusgaben() {
 		$gespeicherttext = false;
 		if(isset($_POST['save'])) {
@@ -251,32 +230,28 @@ class verwaltung {
 				for($i = 0; $i < 4; $i++) {
 					if($_POST["title" . $i] == "") {
 						$sql = "DELETE FROM " . $this->config['databaseprefix'] . "menu WHERE id = $i+1"; 
-						$this->DB->modify($sql);
+						$sql = $this->DB->escape($sql);
+						$this->DB->query($sql);
 						// Leerer Titel
 					} else {
 						$sql = "DELETE FROM " . $this->config['databaseprefix'] . "menu WHERE id = $i+1"; 
-						$this->DB->modify($sql);
+						$this->DB->query($sql);
 						$temp = $_POST["title" . $i];
 						$templink = $_POST["link" . $i];
 						$tempnr = $i+1;
-						$tempnr = $this->DB->real_escape_string($tempnr);
-						$temp = $this->DB->real_escape_string($temp);
-						$templink = $this->DB->real_escape_string($templink);
+						$tempnr = $this->DB->escape($tempnr);
+						$temp = $this->DB->escape($temp);
+						$templink = $this->DB->escape($templink);
 						$sql = "INSERT INTO " . $this->config['databaseprefix'] . "menu (id, title, link) VALUES ('$tempnr', '$temp', '$templink')"; 
-						$this->DB->modify($sql);
+						$this->DB->query($sql);
 						// Voller Titel
 					}
 				}
 			}
 		}
 		$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "menu ORDER BY id ASC";
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-		   $num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		 $k = 0;
+		$this->DB->query($sql);
+		$result = $this->DB->fetchAllRows();
 		if($num > 0) {
 			while ($row = mysqli_fetch_assoc($result)) {
 				$iddb[$k] = $row["id"];
@@ -291,7 +266,7 @@ class verwaltung {
 		}
 		$return .= "<form method='post'><ul><li>Titel:<input value='Startseite' disabled='disabled'> Link:<input value='/' disabled='disabled'></li>";
 		for($i=0; $i < $k; $i++) {
-			$return .= "<li>Titel:<input value='$titledb[$i]' name='title" . $i . "'> Link:<input value='$linkdb[$i]' name='link" . $i . "'></li>";
+			$return .= '<li>Titel:<input value="' . $result[$i]['title'] . 'name="title' . $i . '"> Link:<input value="' . $result[$i]['link'] . ' name="link' . $i . '"></li>';
 		}
 		for($j=$i; $j < 4; $j++) {
 			$return .= "<li>Titel:<input value='' name='title" . $j . "'> Link:<input value='' name='link" . $j . "'></li>";
@@ -300,101 +275,64 @@ class verwaltung {
 		return($return);
 	}
 
+	// ToDo: Ab hier weiter Datenbank
 	public function getStaff() {
 		$sql = "SELECT id, user, vorname, email, disabled FROM " . $this->config['databaseprefix'] . "accounts";
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-		   $num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
+		$this->DB->query($sql);
+		$result = $this->DB->fetchAllRows();
+
+		$return = "";
+		for($i = 0; $i < count($result); $i++) {
+			$sql = "SELECT timestamp FROM " . $this->config['databaseprefix'] . "logins WHERE userid = '" . $result[$i]['id'] . "' ORDER BY timestamp DESC LIMIT 1;";
+			$this->DB->query($sql);
+			if($this->DB->count() > 0) {
+				$lastseendb = $this->DB->fetchRow();
+			} else {
+				$lastseendb = 1;
+			}
+			// Wenn nicht geblockt
+			if($result[$i]['disabled'] == "0") { 
+				$return .= '<tr><th><b>' . $result[$i]['vorname'] . '</b></th><th>' . $result[$i]['email'] . '</th><th>' . date("d. F Y, H:i", $lastseendb) . '</th><th><a href="?page=disableuser&uid=' . $result[$i]['id'] . '">Deaktiveren</a>, <a href="?page=recoverpw&uid=' . $result[$i]['id'] . '">PW vergessen</a ></th></td>';
+			} 
 		}
-		$k = 0;
-		if($num > 0) {
-			while ($row = mysqli_fetch_assoc($result)) {
-				$iddb[$k] = $row["id"];
-				$titledb[$k] = $row["user"];
-				$vornamedb[$k] = $row["vorname"];
-				$emaildb[$k] = $row["email"];
-				$disableddb[$k] = $row["disabled"];
-				$k++;
-			}
-			$return = "";
-			for($i = 0; $i < $num; $i++) {
-				$sql = "SELECT timestamp FROM " . $this->config['databaseprefix'] . "logins WHERE userid = '" . $iddb[$i] . "' ORDER BY timestamp DESC LIMIT 1;";
-				$result = $this->DB->query($sql);
-				if($result === 0) {
-				   $numa = 0;
-				} else {
-					$numa = mysqli_num_rows($result);
-				}
-				$k = 0;
-				if($numa > 0) {
-					while ($row = mysqli_fetch_assoc($result)) {
-						$lastseendb = $row["timestamp"];
-					}
-				} else {
-					$lastseendb = 1;
-				}
-				if($disableddb[$i] == "0") { 
-					$return .= "<tr><th><b>$vornamedb[$i]</b></th><th>$emaildb[$i]</th><th>" . date("d. F Y, H:i", $lastseendb) . "</th><th><a href='?page=disableuser&uid=$iddb[$i]'>Deaktiveren</a>, <a href='?page=recoverpw&uid=$iddb[$i]'>PW vergessen</a ></th></td>";
-				} else {
-				}
-			}
+		if($return != "") {
 			return($return);
+		} else {
+			return("Das Redaktionsmodul ist nicht aktiv");
 		}
-		return("Das Redaktionsmodul ist nicht aktiv");
 	}
 
 	public function disableUser($uid) {
-		$uid = $this->DB->real_escape_string($uid);
+		$uid = $this->DB->escape($uid);
 		$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET disabled = '1' WHERE id = " . $uid; 
-		$this->DB->modify($sql);
+		$this->DB->query($sql);
 	}
 
 	public function passwordRecovery($uid) {
-		$uid = $this->DB->real_escape_string($uid);
+		$uid = $this->DB->escape($uid);
 		$sql = "SELECT id, user, email, password FROM " . $this->config['databaseprefix'] . "accounts WHERE id = " . $uid;
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-			$num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		$k = 0;
-		if($num > 0) {
-			while ($row = mysqli_fetch_assoc($result)) {
-				$iddb[$k] = $row["id"];
-				$userdb[$k] = $row["user"];
-				$emaildb[$k] = $row["email"];
-				$passworddb[$k] = $row["password"];
-				$k++;
-			}
-		}
-		mail($emaildb[0], "Zugriff auf " . $this->config['host'], "Dir wurde ein ein neues Passwort auf " . $this->config['host'] . " angefragt. Klicke folgenden Link, um es festzulegen: https://" . $this->config['host'] . "/admin/resetpw.php?n=" . $userdb[0] . "&p=" . substr($passworddb[0], 0, 16));
+		$this->DB->query($sql);
+		$result = $this->DB->fetchRow();
+		mail($result['email'], "Zugriff auf " . $this->config['host'], "Dir wurde ein ein neues Passwort auf " . $this->config['host'] . " angefragt. Klicke folgenden Link, um es festzulegen: https://" . $this->config['host'] . "/admin/resetpw.php?n=" . $result['user'] . "&p=" . substr($result['password'], 0, 16));
 	}
 
 	public function createNewUser($name, $email) {
-		$name = $this->DB->real_escape_string($name);
-		$email = $this->DB->real_escape_string($email);
+		$name = $this->DB->escape($name);
+		$email = $this->DB->escape($email);
 		$geheimerhash = $this->config['hashsecret'];
 		$hash = sha1($name . microtime() . $geheimerhash);
-		$username = "user" .  date('ydmhis');
+		$username = 'user' .  date('ydmhis');
 		$sql = "INSERT INTO " . $this->config['databaseprefix'] . "accounts (id, user, password, vorname, email, disabled, sendmailna, sendmailnu) VALUES (NULL, '$username', '$hash', '$name', '$email', '0', '0', '0');"; 
-		$this->DB->modify($sql);
+		$this->DB->query($sql);
 		$mailtext = "Hallo " . $name . "!\nEs wurde soeben ein Account auf " . $this->config['host'] . " für dich angelgt. Bitte verwende den folgenden Link um deinen Account einzurichten: https://" . $this->config['host'] . "/admin/register.php?n=" . substr($username, 4) . "&p=" . substr($hash, 0, 16) . " .\nWenn du nicht weißt, wovon diese Mail handelt, ignoriere sie einfach.";
 		mail($email, "Dein Zugriff auf " . $this->config['host'], $mailtext);
 	}
 
 	public function checkIfMailExists($email) {
-		$email = $this->DB->real_escape_string($email);
+		$email = $this->DB->escape($email);
 		$sql = "SELECT id, email, disabled FROM " . $this->config['databaseprefix'] . "accounts WHERE email = '" . $email . "';";
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-		   $num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		if($num == 0) {
+		$this->DB->query();
+		if($this->DB->count() == 0) {
 			return false;
 		} else {
 			return true;
@@ -402,43 +340,39 @@ class verwaltung {
 	}
 
 	public function writeLog($message, $typeofaction) {
-		$message = $this->DB->real_escape_string($message);
-		$typeofaction = $this->DB->real_escape_string($typeofaction);
-		$userid = $this->DB->real_escape_string($_SESSION['id']);
+		$message = $this->DB->escape($message);
+		$typeofaction = $this->DB->escape($typeofaction);
+		$userid = $this->DB->escape($_SESSION['id']);
 		$time = time();
 		$sql = "INSERT INTO " . $this->config['databaseprefix'] . "log (id, timestamp, message, typeofaction, userid) VALUES (NULL, '$time', '$message', '$typeofaction', '$userid');"; 
-		$this->DB->modify($sql);
+		$this->DB->query($sql);
 	}
 
 	public function broadcastMail($mailtext, $type) {
 		$sql = "SELECT vorname, email FROM " . $this->config['databaseprefix'] . "accounts  WHERE email LIKE '%@%' AND disabled = '0';";
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-		   $num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		$k = 0;
-		if($num > 0) {
-			while ($row = mysqli_fetch_assoc($result)) {
-				$vornamedb[$k] = $row["vorname"];
-				$emaildb[$k] = $row["email"];
-				$k++;
-			}
-		}
-		for($i = 0; $i < count($emaildb); $i++) {
+		$this->DB->query($sql);
+		$result = $this->DB->fetchAllRows();
+		for($i = 0; $i < count($result); $i++) {
 			if($type == "newArticle") {
 				$text = "";
-				$text .= "Hallo " . $vornamedb[$i] . "!\nEs wurde der folgende Artikel auf " . $this->config['host'] . " angelegt:\n";
+				$text .= "Hallo " . $result[$i]['vorname'] . "!\nEs wurde der folgende Artikel auf " . $this->config['host'] . " angelegt:\n";
 				$text .= $mailtext . "\nFreundliche Grüße, dein " . $this->config['host'] . " Benachrichtgungssystem.";
-				mail($emaildb[$i], $this->config['host'] . ": Es wurde ein neuer Artikel angelegt.", $text);
+				mail($result[$i]['email'], $this->config['host'] . ": Es wurde ein neuer Artikel angelegt.", $text);
 			}
 		}
 	}
 
 	public function showFiles() {
 		$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "files;";
-		
+		$this->DB->query($sql);
+		$files = $this->DB->fetchAllRows();
+		if(count($files) == 0) {
+			echo "Keine Dateien";
+		} else {
+			foreach($files['title'] as $file) {
+				echo $file;
+			}
+		}
 	}
 
 	public function GUIshowlogin($error = "") {
@@ -467,36 +401,19 @@ class verwaltung {
 
 	public function GUIeditDraft() {
 		$id = $_GET['id'];
-		$id = $this->DB->real_escape_string($id);
+		$id = $this->DB->escape($id);
 		$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "drafts WHERE id = '" . $id . "';";
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-		   $num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		$k = 0;
-		if($num > 0) {
-			while ($row = mysqli_fetch_assoc($result)) {
-				$iddb[$k] = $row["id"];
-				$titledb[$k] = $row["title"];
-				$teaserdb[$k] = $row["teaser"];
-				$createddb[$k] = $row["created"];
-				$urldb[$k] = $row["url"];
-				$aktuelldb[$k] = $row["aktuell"];
-				$detailsdb[$k] = $row["details"];
-				$textdb[$k] = $row["text"];
-				$k++;
-			}
-			$iddb = $iddb[0];
-			$titledb = $titledb[0];
-			$teaserdb = $teaserdb[0];
-			$createddb = $createddb[0];
-			$urldb = $urldb[0];
-			$aktuelldb = $aktuelldb[0];
-			$detailsdb = $detailsdb[0];
-			$textdb = $textdb[0];
-		}
+		$this->DB->query($sql);
+		$result = $this->DB->fetchRow();
+		$iddb = $result['id'];
+		$titledb = $result['title'];
+		$teaserdb = $result['teaser'];
+		$createddb = $result['created'];
+		$urldb = $result['url'];
+		$aktuelldb = $result['aktuell'];
+		$detailsdb = $result['details'];
+		$textdb = $result['text'];
+
 		$meldung = "";
 		if(isset($_POST['title']) && isset($_POST['date']) && isset($_POST['aktuelles']) && isset($_POST['text']) && isset($_POST['id'])) {
 			if(isset($_POST['change'])) {
@@ -522,18 +439,18 @@ class verwaltung {
 				$vokale = array("a", "o", "u", "a", "o", "u", "-", "ss");
 				$umlaute = array("A", "Ö", "Ü", "ä", "ö", "ü", " ", "ß");
 				$url = str_replace($umlaute, $vokale, $url);
-				$url = $this->DB->real_escape_string($url);
-				$userid = $this->DB->real_escape_string($userid);
-				$title = $this->DB->real_escape_string($title);
-				$teaser = $this->DB->real_escape_string($teaser);
-				$id = $this->DB->real_escape_string($id);
-				$created = $this->DB->real_escape_string($created);
-				$lastmod = $this->DB->real_escape_string($lastmod);
-				$aktuell = $this->DB->real_escape_string($aktuell);
-				$details = $this->DB->real_escape_string($details);
-				$text = $this->DB->real_escape_string($text);
+				$url = $this->DB->escape($url);
+				$userid = $this->DB->escape($userid);
+				$title = $this->DB->escape($title);
+				$teaser = $this->DB->escape($teaser);
+				$id = $this->DB->escape($id);
+				$created = $this->DB->escape($created);
+				$lastmod = $this->DB->escape($lastmod);
+				$aktuell = $this->DB->escape($aktuell);
+				$details = $this->DB->escape($details);
+				$text = $this->DB->escape($text);
 				$sql = "UPDATE " . $this->config['databaseprefix'] . "drafts SET title = '" . $title . "',  teaser = '" . $teaser . "', lastmod = '" . $lastmod . "', created = '" . $created . "', aktuell = '" . $aktuell . "', details = '" . $details . "', text = '" . $text . "', url = '" . $url . "' WHERE id = '" . $id . "';"; 
-				$this->DB->modify($sql);
+				$this->DB->query($sql);
 				header("Location: index.php?page=viewdraft&id=" . $id . "&msg=save");
 				$this->LAYOUTtop();
 				// ToDo in Datenbank
@@ -648,17 +565,17 @@ class verwaltung {
 				$vokale = array("a", "o", "u", "a", "o", "u", "-", "ss");
 				$umlaute = array("A", "Ö", "Ü", "ä", "ö", "ü", " ", "ß");
 				$url = str_replace($umlaute, $vokale, $url);
-				$url = $this->DB->real_escape_string($url);
-				$userid = $this->DB->real_escape_string($userid);
-				$title = $this->DB->real_escape_string($title);
-				$teaser = $this->DB->real_escape_string($teaser);
-				$created = $this->DB->real_escape_string($created);
-				$lastmod = $this->DB->real_escape_string($lastmod);
-				$aktuell = $this->DB->real_escape_string($aktuell);
-				$details = $this->DB->real_escape_string($details);
-				$text = $this->DB->real_escape_string($text);
+				$url = $this->DB->escape($url);
+				$userid = $this->DB->escape($userid);
+				$title = $this->DB->escape($title);
+				$teaser = $this->DB->escape($teaser);
+				$created = $this->DB->escape($created);
+				$lastmod = $this->DB->escape($lastmod);
+				$aktuell = $this->DB->escape($aktuell);
+				$details = $this->DB->escape($details);
+				$text = $this->DB->escape($text);
 				$sql = "INSERT INTO " . $this->config['databaseprefix'] . "drafts (id, userid, title, teaser, created, lastmod, url, aktuell, details, text) VALUES (NULL, '" . $userid . "', '" . $title . "', '" . $teaser . "', '" . $created . "', '" . $lastmod . "', '" . $url . "', '" . $aktuell . "', '" . $details . "', '" . $text . "');";
-				$this->DB->modify($sql);
+				$this->DB->query($sql);
 				$this->writeLog("Draft " . $title . " was created by " . $_SESSION['id'] . " (" . $_SESSION['vorname'] . ").", "createdraft");
 				// ToDo in Datenbank
 				echo "<div class='alert alert-success'>Entwurf angelegt!</div>";
@@ -867,26 +784,14 @@ class verwaltung {
 			echo "Es fehlt der Benutzer-Parameter";
 		} else {
 			if($_GET['uid'] != "") {
-				$uid = $this->DB->real_escape_string($_GET['uid']);
+				$uid = $this->DB->escape($_GET['uid']);
 				$sql = "SELECT id, vorname FROM " . $this->config['databaseprefix'] . "accounts WHERE id = " . $uid;
-				$result = $this->DB->query($sql);
-				if($result === 0) {
-				$num = 0;
-				} else {
-					$num = mysqli_num_rows($result);
-				}
-				$k = 0;
-				if($num > 0) {   
-					while ($row = mysqli_fetch_assoc($result)) {
-						$iddb[$k] = $row["id"];
-						$vornamedb[$k] = $row["vorname"];
-						$k++;
-					}
-				}
-				if($iddb[0] == $_SESSION['id']) {
+				$this->DB->query($sql);
+				$result = $this->DB->fetchRow();
+				if($result['id'] == $_SESSION['id']) {
 					echo "<b>Du bist im Begriff dein eigenes Konto zu sperren.</b><br />";
 				} else {
-					echo "Du sperrst " . @$vornamedb[0] . "!<br/>";
+					echo "Du sperrst " . @$result['vorname'] . "!<br/>";
 				}
 				echo "Dies ist eine extrem harte Aktion die du durchführt. Der betreffene Benutzer kann dann NICHT mehr auf die Seite zugreifen.<br/>";
 				 if(isset($_GET['confirm'])) {
@@ -921,52 +826,23 @@ class verwaltung {
 		if(isset($_GET['id'])) {
 			$id = $this->DB->real_escape_string($_GET['id']);
 			$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "drafts WHERE id = " . $id . ";";
-			$result = $this->DB->query($sql);
-			if($result === 0) {
-				$num = 0;
-			} else {
-				$num = mysqli_num_rows($result);
-			}
-			if($num > 0) {
-				$k = 0;
-				while ($row = mysqli_fetch_assoc($result)) {
-					$iddb[$k] = $row["id"];
-					$useriddb[$k] = $row["userid"];
-					$titledb[$k] = $row["title"];
-					$teaserdb[$k] = $row["teaser"];
-					$createddb[$k] = $row["created"];
-					$lastmoddb[$k] = $row["lastmod"];
-					$urldb[$k] = $row["url"];
-					$aktuelldb[$k] = $row["aktuell"];
-					$detailsdb[$k] = $row["details"];
-					$textdb[$k] = $row["text"];
-					$k++;
-				}
-				$iddb = $iddb[0];
-				$useriddb = $useriddb[0];
-				$titledb = $titledb[0];
-				$teaserdb = $teaserdb[0];
-				$createddb = $createddb[0];
-				$lastmoddb = $lastmoddb[0];
-				$urldb = $urldb[0];
-				$aktuelldb = $aktuelldb[0];
-				$detailsdb = $detailsdb[0];
-				$textdb = $textdb[0];
-			}
+			$this->DB->query($sql);
+			$result = $this->DB->fetchRow();
+		
+			$iddb = $result['id'];
+			$useriddb = $result['userid'];
+			$titledb = $result['title'];
+			$teaserdb = $result['teaser'];
+			$createddb = $result['created'];
+			$lastmoddb = $result['lastmod'];
+			$urldb = $result['url'];
+			$aktuelldb = $result['aktuell'];
+			$detailsdb = $result['details'];
+			$textdb = $result['text'];
+
 			$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "accounts WHERE id = " . $useriddb . ";";
-			$result = $this->DB->query($sql);
-			if($result === 0) {
-				$num = 0;
-			} else {
-				$num = mysqli_num_rows($result);
-			}
-			if($num > 0) {
-				$k = 0;
-				while ($row = mysqli_fetch_assoc($result)) {
-					$vornamedb[$k] = $row["vorname"];
-				}
-				$vornamedb = $vornamedb[0];
-			}
+			$this->DB->query($sql);
+			$vornamedb = $this->DB->fetchRow()['vorname'];
 			$message = "";
 			$disablebuttons = false;
 
@@ -974,21 +850,17 @@ class verwaltung {
 				if($_GET['action'] == "publish") {
 					//Publish here
 					$sql = "SELECT * FROM " . $this->config['databaseprefix'] . "articles WHERE url = '" . $urldb . "';";
-					$result = $this->DB->query($sql);
-					if($result === 0) {
-						$num = 0;
-					} else {
-						$num = mysqli_num_rows($result);
-					}
+					$this->DB->query($sql);
+					$num = $this->DB->count();
 					if($urldb == "" OR $num > 0) {
 						// URL existiert bereits
 						$message .= "<div class='alert alert-danger'>Fehler: Der Artikel wurde nicht gepseichert: Die URL existiert bereits! Wähle einen anderen Titel!</div>";
 					} else {
 						$this->writeLog("Article: " . $titledb . ", URL: " . $urldb, "publisharticle");
 						$sql = "INSERT INTO " . $this->config['databaseprefix'] . "articles (id, userid, title, teaser, created, lastmod, url, aktuell, details, text, disabled) VALUES (NULL, '" . $useriddb . "', '" . $titledb . "', '" . $teaserdb . "', '" . $createddb . "', '" . $lastmoddb . "', '" . $urldb . "', '" . $aktuelldb . "', '" . $detailsdb . "', '" . $textdb . "', '0');";
-						$this->DB->modify($sql);
+						$this->DB->query($sql);
 						$sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id = '" . $id . "';";
-						$this->DB->modify($sql);
+						$this->DB->query($sql);
 						$this->broadcastMail($titledb . " –  " . $this->config['host'] . "/a/" . $urldb, "newArticle");
 						$message .= "<div class='alert alert-success'>Artikel wurde veröffentlicht</div>";
 						$disablebuttons = true;
@@ -1025,11 +897,11 @@ class verwaltung {
 	public function GUIdelDraft() {
 		if(isset($_GET['id'])) {
 			if(isset($_GET['confirm'])) {
-				$id = $this->DB->real_escape_string($_GET['id']);
+				$id = $this->DB->escape($_GET['id']);
 				$sql = "INSERT INTO " . $this->config['databaseprefix'] . "draftsold (userid, title, teaser, created, lastmod, url, aktuell, details, text) SELECT userid, title, teaser, created, lastmod, url, aktuell, details, text FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " . $id . ";";
-				$this->DB->modify($sql);
+				$this->DB->query($sql);
 				$sql = "DELETE FROM " . $this->config['databaseprefix'] . "drafts WHERE id LIKE " .  $id . ";";
-				$this->DB->modify($sql);
+				$this->DB->query($sql);
 				header('Location: index.php?page=mydrafts&msg=del');
 			} else {
 			$this->LAYOUTtop();
@@ -1046,9 +918,9 @@ class verwaltung {
 		if(isset($_POST['name'])) {
 			$id = $_SESSION['id'];
 			if($_SESSION['vorname'] != $_POST['name']){
-				$vorname = $this->DB->real_escape_string($_POST['name']);
+				$vorname = $this->DB->escape($_POST['name']);
 				$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET vorname = '" . $vorname . "' WHERE id = '" . $id . "'";
-				$this->DB->modify($sql);
+				$this->DB->query($sql);
 				$_SESSION['vorname'] = $vorname;
 			}
 
@@ -1056,23 +928,23 @@ class verwaltung {
 				if($_POST['neueraccountemail'] == 1) {
 					// Enable
 					$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailnu = '1' WHERE id = '" . $id . "'";
-					$this->DB->modify($sql);
+					$this->DB->query($sql);
 				}
 			} else {
 				// Disable
 				$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailnu = '0' WHERE id = '" . $id . "'";
-				$this->DB->modify($sql);
+				$this->DB->query($sql);
 			}
 			if(isset($_POST['neuerartikelemail'])) {
 				if($_POST['neuerartikelemail'] == 1) {
 					// Enable
 					$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailna = '1' WHERE id = '" . $id . "'";
-					$this->DB->modify($sql);
+					$this->DB->query($sql);
 				}
 			} else {
 				// Disable
 				$sql = "UPDATE " . $this->config['databaseprefix'] . "accounts SET sendmailna = '0' WHERE id = '" . $id . "'";
-				$this->DB->modify($sql);
+				$this->DB->query($sql);
 			}
 		}
 
@@ -1111,18 +983,11 @@ class verwaltung {
 		<div class='col-md-9'>
 		<span class='align-middle'>Am ";
 		$sql = "SELECT timestamp, device FROM " . $this->config['databaseprefix'] . "logins WHERE userid = '" . $_SESSION['id'] . "' ORDER BY timestamp DESC LIMIT 1 OFFSET 1;";
-		$result = $this->DB->query($sql);
-		if($result === 0) {
-			$num = 0;
-		} else {
-			$num = mysqli_num_rows($result);
-		}
-		$k = 0;
-		if($num > 0) {
-			while ($row = mysqli_fetch_assoc($result)) {
-				$lastseendb = $row["timestamp"];
-				$device = $row["device"];
-			}
+		$this->DB->query($sql);
+		if($this->DB->count() > 0) {
+			$result = $this->DB->fetchRow();
+			$lastseendb = $result['timestamp'];
+			$device = $result['device'];
 		} else {
 			$lastseendb = 1;
 			$device = "";
@@ -1139,10 +1004,9 @@ class verwaltung {
 		<label style='font-weight:normal'>
 		<input type='checkbox' id='na' name='neuerartikelemail' value='1'";
 		$sql = "SELECT sendmailna FROM " . $this->config['databaseprefix'] . "accounts WHERE id = '" . $_SESSION['id'] . "';";
-		$result = $this->DB->query($sql);
-		while ($row = mysqli_fetch_assoc($result)) {
-			$checked = $row["sendmailna"][0];
-		}
+		$this->DB->query($sql);
+		$checked = $this->DB->fetchRow()['sendmailna'];
+
 		if($checked) {
 			echo " checked";
 		}
@@ -1157,10 +1021,9 @@ class verwaltung {
 		<label style='font-weight:normal'>
 		<input type='checkbox' name='neueraccountemail' value='1'";
 		$sql = "SELECT sendmailnu FROM " . $this->config['databaseprefix'] . "accounts WHERE id = '" . $_SESSION['id'] . "';";
-		$result = $this->DB->query($sql);
-		while ($row = mysqli_fetch_assoc($result)) {
-			$checked = $row["sendmailnu"][0];
-		}
+		$this->DB->query($sql);
+		$checked = $this->DB->fetchRow()['sendmailnu'];
+
 		if($checked) {
 			echo " checked";
 		}
@@ -1183,7 +1046,7 @@ class verwaltung {
 		$this->LAYOUTfooter();
 	}
 
-	public function GUIlistfiles() {
+	public function GUIlistFiles() {
 		$this->LAYOUTtop();
 		echo "<a href='index.php' class='btn btn-secondary'>← Zurück zur Auswahl</a><br />" . $this->showFiles();
 		$this->LAYOUTfooter();
@@ -1241,5 +1104,4 @@ class verwaltung {
 	}
 }
 
-$tool = new verwaltung();
-?>
+new verwaltung();
